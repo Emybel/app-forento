@@ -55,6 +55,7 @@ cap = None
 running = False
 save_directory = None
 fly_data_file = None  # New variable to store the JSON file handle
+fly_data_file_path = None
 json_data_dir = "data"
 fly_data = {}  # Create an empty dictionnary to store fly data objects
 images_to_archive = []
@@ -95,21 +96,29 @@ def get_save_directory():
 
 # Function to create a new JSON file for the day's fly data
 def create_new_fly_data_file():
+    global fly_data_file
     # Create a subdirectory for JSON files if it doesn't exist
-    json_file_path = os.path.join(json_data_dir, "json_data")
-    os.makedirs(json_file_path, exist_ok=True)
+    sub_directory = os.path.join(json_data_dir, "json_data")
+    os.makedirs(sub_directory, exist_ok=True)
 
     # Generate filename based on date
     today_str = datetime.datetime.now().strftime("%d-%m-%Y")
     file_name = f"detection_data_{today_str}.json"
-    file_path = os.path.join(json_file_path, file_name)
-    data = {'data': []}
-    try:
-        return open(file_path, "w")
-        # json.dump(data,file_name, indent=2)
-    except IOError:
-        print(f"Error opening JSON file: {file_path}")
-        return None
+    json_file_path = os.path.join(sub_directory, file_name)
+
+    # Check json file's existence
+    if os.path.exists(json_file_path):
+        return json_file_path
+    else:
+        data = {'data': []}
+        try:
+            with open(json_file_path, "w") as fly_data_file:
+                json.dump(data,fly_data_file, indent=2)
+            fly_data_file.close()
+            return json_file_path
+        except IOError:
+            print(f"Error opening JSON file: {json_file_path}")
+            return None
 
 def exit_program():
     """Performs cleanup tasks and exits the program."""
@@ -249,12 +258,10 @@ copyright_text = customtkinter.CTkLabel(footer_frame, text="© 2024 YOTTA", text
 copyright_text.pack(padx=10, pady=10, fill="x")
 
 def start_detection():
-    global cap, running, save_directory, fly_data_file
+    global cap, running, save_directory, fly_data_file, fly_data_file_path
 
     # Open a new JSON file for the day's fly data
-    fly_data_file = create_new_fly_data_file()
-    
-    print(fly_data_file, "...line 160")
+    fly_data_file_path = create_new_fly_data_file()
     
     # Check if an external camera is available
     cap = check_external_camera()
@@ -334,39 +341,28 @@ def save_fly_data(fly_info):
     fly_data[f"fly_{unique_id}"] = fly_info  # Add data with unique key
 
 # Define the function to write fly data to JSON (assuming in the same file)
-def write_fly_data_to_json(fly_data_file, fly_data_per_frame):
+def write_fly_data_to_json(file_path, fly_data_per_frame):
+    # global fly_data_per_frame  # Access the global list from detect_objects
+    global fly_data_file
 
-
-    if fly_data_file:
-        
+    if file_path:
         try:
-            # Check if file has data
-            if fly_data_file.read(1):
-                with open(fly_data_file.name, 'r') as fly_data_file:
-                    json_load = json.load(fly_data_file)
-                    # print(json_load)
-                    data_to_write = json_load["data"] + fly_data_per_frame
-                    new_data_to_write = {"data": data_to_write}  # Wrap data in top-level object
-                with open(fly_data_file.name, 'w') as  fly_data_file:
-                    json.dump(fly_data_per_frame, fly_data_file, indent=2)
-                fly_data_per_frame.clear()  # Clear the list after successful write
-            
-            else:
-                # Empty file, create an empty list/dict
-                json_load = {"data": []}  
-                new_data_to_write = {"data": json_load["data"] + fly_data_per_frame}  # Wrap data in top-level object
-                with open(fly_data_file.name, 'w') as fly_data_file:
-                    json.dump(new_data_to_write, fly_data_file, indent=2)
-                fly_data_per_frame.clear()  # Clear the list after successful write
+            json_data = None
+            # Open in read mode
+            with open(file_path, 'r') as fly_data_file:
+                json_data = json.load(fly_data_file)
+            fly_data_file.close()
+
+            json_data["data"] = json_data["data"] + fly_data_per_frame
+
+            with open(file_path, 'w') as fly_data_file:
+                json.dump(json_data, fly_data_file, indent=2)
+            fly_data_file.close()    
         except IOError as e:
             print(f"Error writing fly data to JSON: {e}")
 
-print("before detect_objects")
-
 def detect_objects():
-    global running, cap, save_directory, fly_data_file
-    
-    print("after detect_objects")
+    global running, cap, save_directory, fly_data_file, fly_data_file_path
     
     if not running:
         return
@@ -394,7 +390,7 @@ def detect_objects():
 
     if len(detections) != 0:
         
-        if fly_data_file and running:
+        if fly_data_file_path and running:
             for detection in detections:
                 boxes = detection.boxes
 
@@ -417,7 +413,7 @@ def detect_objects():
                     # Check if detected object is a fly
                     print (detection.names[class_id])
                     
-                    if detection.names[class_id] == "fly" and fly_data_file:
+                    if detection.names[class_id] == "fly" and fly_data_file_path:
                         unique_id = generate_unique_id()
                         now = datetime.datetime.now()
                         date_time_str = now.strftime("%d-%m-%y_%H-%M-%S")
@@ -433,16 +429,8 @@ def detect_objects():
                         }
                         fly_data_per_frame.append(fly_info)  # Append fly data to the list
         # Write data for every frame (real-time)
-        # try:
-        #     json.dump(copy.deepcopy(fly_data_per_frame), fly_data_file, indent=4)
-        #     fly_data_per_frame.clear()  # Clear the list after successful write
-        # except IOError as e:
-        #     print(f"Error writing fly data to JSON: {e}")
-
-        # Write fly data only if there are entries in the list
-        if fly_data_per_frame:
-            write_fly_data_to_json(fly_data_file, fly_data_per_frame)
-            fly_data_per_frame.clear()  # Clear the list after successful write
+        #Write data after every frame
+        write_fly_data_to_json(fly_data_file_path, fly_data_per_frame)
 
     # Archive fly images to ZIP file in ../data/archive dir
 
