@@ -4,7 +4,7 @@ This guide will help you set up the environment to contribute to the Forento Fly
 
 **Requirements:**
 
-* Python (version 3.10 or higher)
+* Python version 3.10
 * pip (package installer for Python)
 
 **Steps:**
