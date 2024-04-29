@@ -1,0 +1,6 @@
+opencv-python
+numpy
+customtkinter
+ultralytics
+Pillow
+winsound
