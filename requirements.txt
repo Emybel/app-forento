@@ -3,4 +3,3 @@ numpy
 customtkinter
 ultralytics
 Pillow
-winsound

@@ -9,25 +9,17 @@ import datetime
 import winsound
 import cv2 as cv
 import numpy as np
-import ultralytics
 import customtkinter
 from PIL import Image
 from ultralytics import YOLO
 from util.createjson import *
 from tkinter import filedialog
 from CTkMessagebox import CTkMessagebox
-# from customtkinter import CTkMessagebox
 
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
+sys.stderr = open(os.path.join(os.getenv("TEMP"), "stderr-"+os.path.basename(sys.argv[0])), "w")
 
 # Define the path to the model
-model_path = "forentoModel.pt"
+model_path = "C:\\Users\\PC CABA DZ\\Desktop\\forrento-application-yolov8\\forentoModel.pt"
 
 # Define the classes
 classes = ["fly", "larvae", "pupae"]
@@ -93,7 +85,7 @@ def get_save_directory():
         return folder_path
     else:
         return None
-
+    
 # Function to create a new JSON file for the day's fly data
 def create_new_fly_data_file():
     global fly_data_file
@@ -203,7 +195,7 @@ footer_frame = customtkinter.CTkFrame(main_container)
 footer_frame.pack(side="bottom", fill="x", padx=5, pady=5, anchor="center")
 
 # **Load logo image**
-logo_image = customtkinter.CTkImage(Image.open(resource_path("asset/logo.png")), size=(80, 80))
+logo_image = customtkinter.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
 
 # **Create label for app name with larger font**
 app_name_label = customtkinter.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
@@ -243,8 +235,8 @@ confidence_entry = customtkinter.CTkEntry(
 )
 confidence_entry.pack(pady=10, padx=10)
 # **Load play and pause icon images**
-play_icon = customtkinter.CTkImage(Image.open(resource_path("asset/play.png")), size=(20, 20))
-pause_icon = customtkinter.CTkImage(Image.open(resource_path("asset/pause.png")), size=(20, 20))
+play_icon = customtkinter.CTkImage(Image.open("asset/play.png"), size=(20, 20))
+pause_icon = customtkinter.CTkImage(Image.open("asset/pause.png"), size=(20, 20))
 
 # **Create buttons for pause/play confidence threshold functionality (replace with your logic)**
 pause_button = customtkinter.CTkButton(sidebar_frame, image= pause_icon, text=' ', corner_radius=100, command=lambda: pause_detection(), state="disabled")
