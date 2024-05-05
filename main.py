@@ -15,16 +15,13 @@ from PIL import Image
 from ultralytics import YOLO
 from util.createjson import *
 from tkinter import filedialog
+from pymongo import MongoClient
 from CTkMessagebox import CTkMessagebox
 # from customtkinter import CTkMessagebox
 
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+client = MongoClient("localhost", 27017)
 
-    return os.path.join(base_path, relative_path)
+db = client.forento
 
 # Define the path to the model
 model_path = "forentoModel.pt"
@@ -94,31 +91,59 @@ def get_save_directory():
     else:
         return None
 
-# Function to create a new JSON file for the day's fly data
-def create_new_fly_data_file():
-    global fly_data_file
-    # Create a subdirectory for JSON files if it doesn't exist
-    sub_directory = os.path.join(json_data_dir, "json_data")
-    os.makedirs(sub_directory, exist_ok=True)
+# Function to create a new collection for the day's fly data
+def new_collection(client, db_name, collection_prefix="detaction-"):
+    """
+    Creates a new daily collection in the specified MongoDB database.
 
-    # Generate filename based on date
-    today_str = datetime.datetime.now().strftime("%d-%m-%Y")
-    file_name = f"detection_data_{today_str}.json"
-    json_file_path = os.path.join(sub_directory, file_name)
+    Args:
+        client (MongoClient): A MongoClient instance connected to the MongoDB server.
+        db_name (str): The name of the database to create the collection in.
+        collection_prefix (str, optional): The prefix for the collection name. Defaults to "detection-".
 
-    # Check json file's existence
-    if os.path.exists(json_file_path):
-        return json_file_path
-    else:
-        data = {'data': []}
+    Returns:
+        str: The name of the newly created collection, or None if it already exists.
+    """
+    db = client[db_name] # Get the database object
+    today = datetime.datetime.now().strftime("%m-%d-%Y")
+    collection_name = f"{collection_prefix}{today}"
+    
+    if collection_name not in db.list_collection_names():
         try:
-            with open(json_file_path, "w") as fly_data_file:
-                json.dump(data,fly_data_file, indent=2)
-            fly_data_file.close()
-            return json_file_path
-        except IOError:
-            print(f"Error opening JSON file: {json_file_path}")
+            db.create_collection(collection_name)
+            return collection_name
+        except Exception as e:
+            print(f"Error creating collection: {e}")
             return None
+    else:
+        print(f"Collection '{collection_name}' already exists.")
+        return None
+
+# Function to create a new JSON file for the day's fly data
+# def create_new_fly_data_file():
+#     global fly_data_file
+#     # Create a subdirectory for JSON files if it doesn't exist
+#     sub_directory = os.path.join(json_data_dir, "json_data")
+#     os.makedirs(sub_directory, exist_ok=True)
+
+#     # Generate filename based on date
+#     today_str = datetime.datetime.now().strftime("%d-%m-%Y")
+#     file_name = f"detection_data_{today_str}.json"
+#     json_file_path = os.path.join(sub_directory, file_name)
+
+#     # Check json file's existence
+#     if os.path.exists(json_file_path):
+#         return json_file_path
+#     else:
+#         data = {'data': []}
+#         try:
+#             with open(json_file_path, "w") as fly_data_file:
+#                 json.dump(data,fly_data_file, indent=2)
+#             fly_data_file.close()
+#             return json_file_path
+#         except IOError:
+#             print(f"Error opening JSON file: {json_file_path}")
+#             return None
 
 def exit_program():
     """Performs cleanup tasks and exits the program."""
@@ -203,7 +228,7 @@ footer_frame = customtkinter.CTkFrame(main_container)
 footer_frame.pack(side="bottom", fill="x", padx=5, pady=5, anchor="center")
 
 # **Load logo image**
-logo_image = customtkinter.CTkImage(Image.open(resource_path("asset/logo.png")), size=(80, 80))
+logo_image = customtkinter.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
 
 # **Create label for app name with larger font**
 app_name_label = customtkinter.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
@@ -243,8 +268,8 @@ confidence_entry = customtkinter.CTkEntry(
 )
 confidence_entry.pack(pady=10, padx=10)
 # **Load play and pause icon images**
-play_icon = customtkinter.CTkImage(Image.open(resource_path("asset/play.png")), size=(20, 20))
-pause_icon = customtkinter.CTkImage(Image.open(resource_path("asset/pause.png")), size=(20, 20))
+play_icon = customtkinter.CTkImage(Image.open("asset/play.png"), size=(20, 20))
+pause_icon = customtkinter.CTkImage(Image.open("asset/pause.png"), size=(20, 20))
 
 # **Create buttons for pause/play confidence threshold functionality (replace with your logic)**
 pause_button = customtkinter.CTkButton(sidebar_frame, image= pause_icon, text=' ', corner_radius=100, command=lambda: pause_detection(), state="disabled")
@@ -258,11 +283,14 @@ copyright_text = customtkinter.CTkLabel(footer_frame, text="© 2024 YOTTA", text
 copyright_text.pack(padx=10, pady=10, fill="x")
 
 def start_detection():
-    global cap, running, save_directory, fly_data_file, fly_data_file_path
+    global cap, running, save_directory, fly_data_file, fly_data_file_path, client
 
     # Open a new JSON file for the day's fly data
-    fly_data_file_path = create_new_fly_data_file()
+    # fly_data_file_path = create_new_fly_data_file()
     
+    # Create a new collection in mongodb to save the fly data
+    collection_name = new_collection(client,"forento")
+        
     # Check if an external camera is available
     cap = check_external_camera()
     if not cap:
@@ -274,10 +302,10 @@ def start_detection():
         if not save_directory:
             return  # Exit function if user cancels save directory selection
 
-    # Ensure JSON data directory exists
-    if not os.path.exists(json_data_dir):
-        print(f"Error: JSON data directory '{json_data_dir}' does not exist!")
-        return
+    # # Ensure JSON data directory exists
+    # if not os.path.exists(json_data_dir):
+    #     print(f"Error: JSON data directory '{json_data_dir}' does not exist!")
+        # return
     
     # Clear fly data before starting a new detection session
     # fly_data.clear()
@@ -289,7 +317,11 @@ def start_detection():
     pause_button.configure(state="normal")  # Enable pause button when detection starts
     confidence_entry.configure(state="disabled")  # Disable confidence entry editing
     exit_button.configure(state="disabled") # Disable exit button when detection starts
-    detect_objects()
+    
+    if collection_name:  # Check if collection creation was successful
+        detect_objects(collection_name)  # Pass the collection object
+    else:
+        print("Error creating collection. Unable to start detection.")
 
 def stop_detection():
     global running, fly_data_file
@@ -300,7 +332,7 @@ def stop_detection():
     pause_button.configure(state="disable")
     exit_button.configure(state="normal")
     clear_image_label()
-    fly_data_file.close()
+    # fly_data_file.close()
     # if fly_data_file:
     #     fly_data_file.close()  # Close the JSON file
     #     fly_data_file = None
@@ -341,27 +373,29 @@ def save_fly_data(fly_info):
     fly_data[f"fly_{unique_id}"] = fly_info  # Add data with unique key
 
 # Define the function to write fly data to JSON (assuming in the same file)
-def write_fly_data_to_json(file_path, fly_data_per_frame):
-    # global fly_data_per_frame  # Access the global list from detect_objects
-    global fly_data_file
+# def write_fly_data_to_json(file_path, fly_data_per_frame):
+#     # global fly_data_per_frame  # Access the global list from detect_objects
+#     global fly_data_file
 
-    if file_path:
-        try:
-            json_data = None
-            # Open in read mode
-            with open(file_path, 'r') as fly_data_file:
-                json_data = json.load(fly_data_file)
-            fly_data_file.close()
+#     if file_path:
+#         try:
+#             json_data = None
+#             # Open in read mode
+#             with open(file_path, 'r') as fly_data_file:
+#                 json_data = json.load(fly_data_file)
+#             fly_data_file.close()
 
-            json_data["data"] = json_data["data"] + fly_data_per_frame
+#             json_data["data"] = json_data["data"] + fly_data_per_frame
 
-            with open(file_path, 'w') as fly_data_file:
-                json.dump(json_data, fly_data_file, indent=2)
-            fly_data_file.close()    
-        except IOError as e:
-            print(f"Error writing fly data to JSON: {e}")
+#             with open(file_path, 'w') as fly_data_file:
+#                 json.dump(json_data, fly_data_file, indent=2)
+#             fly_data_file.close()    
+#         except IOError as e:
+#             print(f"Error writing fly data to JSON: {e}")
 
-def detect_objects():
+# Save fly data in the new_collection
+
+def detect_objects(collection_name):
     global running, cap, save_directory, fly_data_file, fly_data_file_path
     
     if not running:
@@ -430,7 +464,12 @@ def detect_objects():
                         fly_data_per_frame.append(fly_info)  # Append fly data to the list
         # Write data for every frame (real-time)
         #Write data after every frame
-        write_fly_data_to_json(fly_data_file_path, fly_data_per_frame)
+        # write_fly_data_to_json(fly_data_file_path, fly_data_per_frame)
+        
+        # Save fly data to the MongoDB collection
+            if fly_data_per_frame:
+                collection_name.insert_many(fly_data_per_frame)  # Insert multiple documents at once
+                print(f"Saved fly data to collection: {collection_name.name}")
 
     # Archive fly images to ZIP file in ../data/archive dir
 
@@ -442,7 +481,7 @@ def detect_objects():
 
     # Schedule the next frame capture and detection
     if running:
-        app.after(10, detect_objects)
+        app.after(30, detect_objects(collection_name))
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
