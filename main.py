@@ -51,10 +51,10 @@ cap = None
 # Global variables
 running = False
 save_directory = None
-fly_data_file = None  # New variable to store the JSON file handle
-fly_data_file_path = None
-json_data_dir = "data"
-fly_data = {}  # Create an empty dictionnary to store fly data objects
+# fly_data_file = None  # New variable to store the JSON file handle
+# fly_data_file_path = None
+# json_data_dir = "data"
+# fly_data = {}  # Create an empty dictionnary to store fly data objects
 images_to_archive = []
 fly_data_per_frame = []
 
@@ -117,7 +117,7 @@ def new_collection(client, db_name, collection_prefix="detaction-"):
             return None
     else:
         print(f"Collection '{collection_name}' already exists.")
-        return None
+        return collection_name
 
 # Function to create a new JSON file for the day's fly data
 # def create_new_fly_data_file():
@@ -153,9 +153,9 @@ def exit_program():
     if cap:
         cap.release()
 
-    # Close the JSON file (if open)
-    if fly_data_file:
-        fly_data_file.close()
+    # # Close the JSON file (if open)
+    # if fly_data_file:
+    #     fly_data_file.close()
 
     # Set a flag to stop the main loop (if applicable)
     running = False
@@ -283,7 +283,7 @@ copyright_text = customtkinter.CTkLabel(footer_frame, text="© 2024 YOTTA", text
 copyright_text.pack(padx=10, pady=10, fill="x")
 
 def start_detection():
-    global cap, running, save_directory, fly_data_file, fly_data_file_path, client
+    global cap, running, save_directory, client
 
     # Open a new JSON file for the day's fly data
     # fly_data_file_path = create_new_fly_data_file()
@@ -321,10 +321,11 @@ def start_detection():
     if collection_name:  # Check if collection creation was successful
         detect_objects(collection_name)  # Pass the collection object
     else:
-        print("Error creating collection. Unable to start detection.")
+        # print("Error creating collection. Unable to start detection.")
+        detect_objects(collection_name)
 
 def stop_detection():
-    global running, fly_data_file
+    global running
     running = False
     start_button.configure(state="normal")
     stop_button.configure(state="disabled")
@@ -362,15 +363,15 @@ def resume_detection():
         confidence_entry.configure(state="disabled")  # Disable editing the entry
         start_detection()  # Call start_detection to handle further logic
 
-fly_id_counter = 0  # Initialize a counter
-def generate_unique_id():
-    global fly_id_counter
-    fly_id_counter += 1
-    return fly_id_counter
+# fly_id_counter = 0  # Initialize a counter
+# def generate_unique_id():
+#     global fly_id_counter
+#     fly_id_counter += 1
+#     return fly_id_counter
 
-def save_fly_data(fly_info):
-    unique_id = generate_unique_id()
-    fly_data[f"fly_{unique_id}"] = fly_info  # Add data with unique key
+# def save_fly_data(fly_info):
+#     unique_id = generate_unique_id()
+#     fly_data[f"fly_{unique_id}"] = fly_info  # Add data with unique key
 
 # Define the function to write fly data to JSON (assuming in the same file)
 # def write_fly_data_to_json(file_path, fly_data_per_frame):
@@ -396,8 +397,12 @@ def save_fly_data(fly_info):
 # Save fly data in the new_collection
 
 def detect_objects(collection_name):
-    global running, cap, save_directory, fly_data_file, fly_data_file_path
+    global running, cap, save_directory
     
+    # Call new_collection to get the collection name (existing or newly created)
+    collection_name = new_collection(client, "forento")
+    
+    print("Steped in th detect_objects() method")
     if not running:
         return
 
@@ -421,10 +426,10 @@ def detect_objects(collection_name):
     detections = model.predict(source=frame, save=False, conf=confidence_threshold)
     detections = detections[0].numpy()
     # print(detections)
-
+    print("Searching for detections...")
     if len(detections) != 0:
-        
-        if fly_data_file_path and running:
+        print("There are detections !! ")
+        if running:
             for detection in detections:
                 boxes = detection.boxes
 
@@ -445,10 +450,11 @@ def detect_objects(collection_name):
                     cv.putText(frame, text, (int(x_min), int(y_min) - 10), font, fontScale, (0, 0, 255), 1)
 
                     # Check if detected object is a fly
-                    print (detection.names[class_id])
+                    # print (detection.names[class_id])
                     
-                    if detection.names[class_id] == "fly" and fly_data_file_path:
-                        unique_id = generate_unique_id()
+                    if detection.names[class_id] == "fly":
+                        print("fly detected!")
+                        # unique_id = generate_unique_id()
                         now = datetime.datetime.now()
                         date_time_str = now.strftime("%d-%m-%y_%H-%M-%S")
                         file_name = os.path.join(save_directory, f'detected-fly_{date_time_str}.png')
@@ -462,26 +468,25 @@ def detect_objects(collection_name):
                             "confidence": rounded_confidence
                         }
                         fly_data_per_frame.append(fly_info)  # Append fly data to the list
+                        
         # Write data for every frame (real-time)
         #Write data after every frame
         # write_fly_data_to_json(fly_data_file_path, fly_data_per_frame)
-        
-        # Save fly data to the MongoDB collection
-            if fly_data_per_frame:
-                collection_name.insert_many(fly_data_per_frame)  # Insert multiple documents at once
-                print(f"Saved fly data to collection: {collection_name.name}")
-
+    # Save fly data to the MongoDB collection
+    if fly_data_per_frame:
+        db.collection_name.insert_many(fly_data_per_frame)  # Insert multiple documents at once
+        print(f"Saved fly data to collection: {collection_name}")
     # Archive fly images to ZIP file in ../data/archive dir
 
     # Update the GUI with the processed frame
     img = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
-    photo = customtkinter.CTkImage(img, size=(640, 480))
+    photo = customtkinter.CTkImage(img, size=(860, 820))
     image_label.configure(image=photo)
     image_label.image = photo
 
     # Schedule the next frame capture and detection
     if running:
-        app.after(30, detect_objects(collection_name))
+        app.after(60, detect_objects(collection_name))
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
