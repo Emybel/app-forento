@@ -3,9 +3,10 @@ import sys
 import json
 import copy
 import uuid
-import shutil  
+import shutil 
 import random
 import zipfile
+import hashlib 
 import datetime
 import winsound
 import cv2 as cv
@@ -21,8 +22,9 @@ from CTkMessagebox import CTkMessagebox
 # from customtkinter import CTkMessagebox
 
 client = MongoClient("localhost", 27017)
-
 db = client.forento
+collection = db['fly_detections']
+
 
 # Define the path to the model
 model_path = "forentoModel.pt"
@@ -52,11 +54,12 @@ cap = None
 # Global variables
 running = False
 save_directory = None
-collection_name = " "
+# collection_name = " "
 unique_fly_data = set()
 filtered_data = []
 images_to_archive = []
 fly_data_per_frame = []
+secure_path = "/data/storage"
 
 # Custom function to check if an external camera is available
 def check_external_camera():
@@ -69,9 +72,9 @@ def check_external_camera():
             else:
                 cap.release()
     
-    if len(external_cameras) > 0:
+    if len(external_cameras) > 1:
         print(f"Found {len(external_cameras)} external cameras")
-        return external_cameras[0]
+        return external_cameras[1]
     else:
         print("No external camera found")
         return None
@@ -92,35 +95,53 @@ def get_save_directory():
         return None
 
 # Function to create a new collection for the day's fly data
-def new_collection(client, db_name, collection_prefix="detaction-"):
+# def new_collection(client, db_name, collection_prefix="detaction-"):
+#     """
+#     Creates a new daily collection in the specified MongoDB database.
+
+#     Args:
+#         client (MongoClient): A MongoClient instance connected to the MongoDB server.
+#         db_name (str): The name of the database to create the collection in.
+#         collection_prefix (str, optional): The prefix for the collection name. Defaults to "detection-".
+
+#     Returns:
+#         str: The name of the newly created collection, or None if it already exists.
+#     """
+#     global collection_name
+#     db = client[db_name] # Get the database object
+#     today = datetime.datetime.now().strftime("%m-%d-%Y")
+#     collection_name = f"{collection_prefix}{today}"
+    
+#     if collection_name not in db.list_collection_names():
+#         try:
+#             db.create_collection(collection_name)
+#             return collection_name
+#         except Exception as e:
+#             print(f"Error creating collection: {e}")
+#             return None
+#     else:
+#         print(f"Collection '{collection_name}' already exists.")
+#         return collection_name
+
+def secure_folder(folder_path):
     """
-    Creates a new daily collection in the specified MongoDB database.
+    Attempts to set restrictive permissions on the specified folder using the 'chmod' command.
 
     Args:
-        client (MongoClient): A MongoClient instance connected to the MongoDB server.
-        db_name (str): The name of the database to create the collection in.
-        collection_prefix (str, optional): The prefix for the collection name. Defaults to "detection-".
+        folder_path (str): The path to the folder you want to secure.
 
     Returns:
-        str: The name of the newly created collection, or None if it already exists.
+        bool: True if the command execution was successful, False otherwise.
     """
-    global collection_name
-    db = client[db_name] # Get the database object
-    today = datetime.datetime.now().strftime("%m-%d-%Y")
-    collection_name = f"{collection_prefix}{today}"
-    
-    if collection_name not in db.list_collection_names():
-        try:
-            db.create_collection(collection_name)
-            return collection_name
-        except Exception as e:
-            print(f"Error creating collection: {e}")
-            return None
-    else:
-        print(f"Collection '{collection_name}' already exists.")
-        return collection_name
-
-
+    try:
+        # Set permissions to owner (you) having full access (read, write, execute)
+        # Group and others have no access (no read, write, or execute)
+        command = f"chmod 700 {folder_path}"
+        os.system(command)
+        return True
+    except Exception as e:
+        print(f"Error setting folder permissions: {e}")
+        return False
 def exit_program():
     """Performs cleanup tasks and exits the program."""
     global cap, fly_data_file, running
@@ -258,7 +279,7 @@ def start_detection():
     global cap, running, save_directory, client
     
     # Create a new collection in mongodb to save the fly data
-    collection_name = new_collection(client,"forento", collection_prefix="detection-")
+    # collection_name = new_collection(client,"forento", collection_prefix="detection-")
         
     # Check if an external camera is available
     cap = check_external_camera()
@@ -319,7 +340,6 @@ def resume_detection():
 def detect_objects():
     global running, cap, save_directory, collection_name
 
-    # print("Steped in th detect_objects() method")
     if not running:
         return
 
@@ -340,10 +360,16 @@ def detect_objects():
     # Predict on the frame
     detections = model.predict(source=frame, save=False, conf=confidence_threshold)
     detections = detections[0].numpy()
-    # print(detections)
-    print("Searching for detections...")
+    
+    success = secure_folder(secure_path) # Secure the storage_path
+
+    if success:
+        print(f"Successfully secured folder: {secure_path}")
+    else:
+        print("Failed to secure folder. Check permissions or run with administrator privileges.")
+    
     if len(detections) != 0:
-        print("There are detections !! ")
+
         if running:
             for detection in detections:
                 boxes = detection.boxes
@@ -366,39 +392,62 @@ def detect_objects():
 
                     if detection.names[class_id] == "fly":
                         print("fly detected!")
-                        # unique_id = generate_unique_id()
+                        
                         now = datetime.datetime.now()
-                        date_time_str = now.strftime("%d-%m-%y_%H-%M-%S")
+                        date_time_str = now.strftime("%m-%d-%y_%H-%M-%S")
+                        # date_str = now.strftime("%m-%d-%y")
+                        time_str = now.strftime("%H:%M:%S")
                         file_name = os.path.join(save_directory, f'detected-fly_{date_time_str}.png')
+                        # Save the fly image using OpenCV or other libraries
+                        cv.imwrite(secure_path, f'detected-fly_{date_time_str}.png')
+                        # Generate unique identifier (hash of filename)
+                        image_hash = hashlib.sha256(f'detected-fly_{date_time_str}.png'.encode()).hexdigest()
                         images_to_archive.append(file_name)
                         rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)  # Convert to RGB
                         pil_image = Image.fromarray(rgb_frame)  # Convert to PIL Image
                         winsound.Beep(3000, 500)
                         pil_image.save(file_name)
                         fly_info = {
-                            "date_time": date_time_str,
-                            "confidence": float(rounded_confidence),
-                            "position":{
-                                "tl_x": round(float(x_min),3),
-                                "tl_y": round(float(y_min),3),
-                                "br_x": round(float(x_max),3),
-                                "br_y": round(float(y_max),3),
-                            },
-                            "_id": str(uuid.uuid4())  # Generate a UUID and convert to string
+                            "detections": [
+                                {
+                                    "time": time_str,  # Use the same variable containing the time string
+                                    "confidence": rounded_confidence,
+                                    "image_id": image_hash,  # Store image hash
+                                    "image_path": f"{secure_path}/'detected-fly_{date_time_str}.png'",  # Store relative path
+                                    "position": {
+                                        "tl_x": round(float(x_min), 3),
+                                        "tl_y": round(float(y_min), 3),
+                                        "br_x": round(float(x_max), 3),
+                                        "br_y": round(float(y_max), 3),
+                                    }
+                                }
+                            ]
                         }
                         fly_data_per_frame.append(fly_info)  # Append fly data to the list
+                        
+                        if fly_data_per_frame:
+                            # collection = db[collection_name]
+                            query = {"date": date_time_str}  # Search for document with matching date
+                            update = {"$push": {"detections": {"$each": fly_data_per_frame}}}  # Update with new detections
+                            result = collection.find_one_and_update(query, update, upsert=True)  # Upsert if not found
 
-        # Save fly data to the MongoDB collection
-        if fly_data_per_frame:
-            collection = db[collection_name]
-            for data in fly_data_per_frame:
-                print(type(data))
-                if data["_id"] not in unique_fly_data:
-                    unique_fly_data.add(data["_id"])
-                    filtered_data.append(data)
+                            if result:
+                                print(f"Updated detections for collection: {collection.name}")
+                            else:
+                                print(f"No document found for date: {date_time_str}. Creating new collection.")
+                                # Consider creating a new document here if desired (optional)
 
-            result = collection.insert_many(filtered_data)  # Insert multiple documents at once
-            print(f"Saved fly data to collection: {collection}")
+        # # Save fly data to the MongoDB collection
+        # if fly_data_per_frame:
+        #     collection = db[collection_name]
+        #     for data in fly_data_per_frame:
+        #         print(type(data))
+        #         if data["_id"] not in unique_fly_data:
+        #             unique_fly_data.add(data["_id"])
+        #             filtered_data.append(data)
+
+            # result = collection.insert_many(filtered_data)  # Insert multiple documents at once
+            # print(f"Saved fly data to collection: {collection}")
 
     # Archive fly images to ZIP file in ../data/archive dir
 
@@ -420,3 +469,43 @@ app.mainloop()
 if cap:
     cap.release()
 cv.destroyAllWindows()
+
+# detections = [
+#     {
+#         "date": datetime.now(), 
+#         "time": "10:00 AM", 
+#         "fly_image": "fly1.jpg", 
+#         "confidence": 0.85, 
+#         "position": [100, 200]
+#     },
+#     {"date": datetime.now(), "time": "10:05 AM", "fly_image": "fly2.jpg", "confidence": 0.78, "position": [150, 250]},
+#     {"date": datetime.now(), "time": "10:10 AM", "fly_image": "fly3.jpg", "confidence": 0.91, "position": [200, 300]}
+# ]
+
+# {
+#   "_id": ObjectId("..."),
+#   "date": ISODate("2024-05-09T10:00:00Z"),
+#   "detections": [
+#     {
+#       "date": ISODate("2024-05-09T10:00:00Z"),
+#       "time": "10:00 AM",
+#       "fly_image": "fly1.jpg",
+#       "confidence": 0.85,
+#       "position": [100, 200]
+#     },
+#     {
+#       "date": ISODate("2024-05-09T10:05:00Z"),
+#       "time": "10:05 AM",
+#       "fly_image": "fly2.jpg",
+#       "confidence": 0.78,
+#       "position": [150, 250]
+#     },
+#     {
+#       "date": ISODate("2024-05-09T10:10:00Z"),
+#       "time": "10:10 AM",
+#       "fly_image": "fly3.jpg",
+#       "confidence": 0.91,
+#       "position": [200, 300]
+#     }
+#   ]
+# }
