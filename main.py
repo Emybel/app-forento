@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import copy
+import uuid
 import shutil  
 import random
 import zipfile
@@ -51,10 +52,9 @@ cap = None
 # Global variables
 running = False
 save_directory = None
-# fly_data_file = None  # New variable to store the JSON file handle
-# fly_data_file_path = None
-# json_data_dir = "data"
-# fly_data = {}  # Create an empty dictionnary to store fly data objects
+collection_name = " "
+unique_fly_data = set()
+filtered_data = []
 images_to_archive = []
 fly_data_per_frame = []
 
@@ -104,6 +104,7 @@ def new_collection(client, db_name, collection_prefix="detaction-"):
     Returns:
         str: The name of the newly created collection, or None if it already exists.
     """
+    global collection_name
     db = client[db_name] # Get the database object
     today = datetime.datetime.now().strftime("%m-%d-%Y")
     collection_name = f"{collection_prefix}{today}"
@@ -119,31 +120,6 @@ def new_collection(client, db_name, collection_prefix="detaction-"):
         print(f"Collection '{collection_name}' already exists.")
         return collection_name
 
-# Function to create a new JSON file for the day's fly data
-# def create_new_fly_data_file():
-#     global fly_data_file
-#     # Create a subdirectory for JSON files if it doesn't exist
-#     sub_directory = os.path.join(json_data_dir, "json_data")
-#     os.makedirs(sub_directory, exist_ok=True)
-
-#     # Generate filename based on date
-#     today_str = datetime.datetime.now().strftime("%d-%m-%Y")
-#     file_name = f"detection_data_{today_str}.json"
-#     json_file_path = os.path.join(sub_directory, file_name)
-
-#     # Check json file's existence
-#     if os.path.exists(json_file_path):
-#         return json_file_path
-#     else:
-#         data = {'data': []}
-#         try:
-#             with open(json_file_path, "w") as fly_data_file:
-#                 json.dump(data,fly_data_file, indent=2)
-#             fly_data_file.close()
-#             return json_file_path
-#         except IOError:
-#             print(f"Error opening JSON file: {json_file_path}")
-#             return None
 
 def exit_program():
     """Performs cleanup tasks and exits the program."""
@@ -152,10 +128,6 @@ def exit_program():
     # Close the camera capture (if open)
     if cap:
         cap.release()
-
-    # # Close the JSON file (if open)
-    # if fly_data_file:
-    #     fly_data_file.close()
 
     # Set a flag to stop the main loop (if applicable)
     running = False
@@ -284,12 +256,9 @@ copyright_text.pack(padx=10, pady=10, fill="x")
 
 def start_detection():
     global cap, running, save_directory, client
-
-    # Open a new JSON file for the day's fly data
-    # fly_data_file_path = create_new_fly_data_file()
     
     # Create a new collection in mongodb to save the fly data
-    collection_name = new_collection(client,"forento")
+    collection_name = new_collection(client,"forento", collection_prefix="detection-")
         
     # Check if an external camera is available
     cap = check_external_camera()
@@ -302,14 +271,6 @@ def start_detection():
         if not save_directory:
             return  # Exit function if user cancels save directory selection
 
-    # # Ensure JSON data directory exists
-    # if not os.path.exists(json_data_dir):
-    #     print(f"Error: JSON data directory '{json_data_dir}' does not exist!")
-        # return
-    
-    # Clear fly data before starting a new detection session
-    # fly_data.clear()
-
     running = True
     start_button.configure(state="disabled")
     stop_button.configure(state="normal")
@@ -318,11 +279,7 @@ def start_detection():
     confidence_entry.configure(state="disabled")  # Disable confidence entry editing
     exit_button.configure(state="disabled") # Disable exit button when detection starts
     
-    if collection_name:  # Check if collection creation was successful
-        detect_objects(collection_name)  # Pass the collection object
-    else:
-        # print("Error creating collection. Unable to start detection.")
-        detect_objects(collection_name)
+    detect_objects()  # Pass the collection object
 
 def stop_detection():
     global running
@@ -333,10 +290,6 @@ def stop_detection():
     pause_button.configure(state="disable")
     exit_button.configure(state="normal")
     clear_image_label()
-    # fly_data_file.close()
-    # if fly_data_file:
-    #     fly_data_file.close()  # Close the JSON file
-    #     fly_data_file = None
 
 def open_save_folder():
     if save_directory:
@@ -363,46 +316,10 @@ def resume_detection():
         confidence_entry.configure(state="disabled")  # Disable editing the entry
         start_detection()  # Call start_detection to handle further logic
 
-# fly_id_counter = 0  # Initialize a counter
-# def generate_unique_id():
-#     global fly_id_counter
-#     fly_id_counter += 1
-#     return fly_id_counter
+def detect_objects():
+    global running, cap, save_directory, collection_name
 
-# def save_fly_data(fly_info):
-#     unique_id = generate_unique_id()
-#     fly_data[f"fly_{unique_id}"] = fly_info  # Add data with unique key
-
-# Define the function to write fly data to JSON (assuming in the same file)
-# def write_fly_data_to_json(file_path, fly_data_per_frame):
-#     # global fly_data_per_frame  # Access the global list from detect_objects
-#     global fly_data_file
-
-#     if file_path:
-#         try:
-#             json_data = None
-#             # Open in read mode
-#             with open(file_path, 'r') as fly_data_file:
-#                 json_data = json.load(fly_data_file)
-#             fly_data_file.close()
-
-#             json_data["data"] = json_data["data"] + fly_data_per_frame
-
-#             with open(file_path, 'w') as fly_data_file:
-#                 json.dump(json_data, fly_data_file, indent=2)
-#             fly_data_file.close()    
-#         except IOError as e:
-#             print(f"Error writing fly data to JSON: {e}")
-
-# Save fly data in the new_collection
-
-def detect_objects(collection_name):
-    global running, cap, save_directory
-    
-    # Call new_collection to get the collection name (existing or newly created)
-    collection_name = new_collection(client, "forento")
-    
-    print("Steped in th detect_objects() method")
+    # print("Steped in th detect_objects() method")
     if not running:
         return
 
@@ -420,8 +337,6 @@ def detect_objects(collection_name):
     except ValueError:
         confidence_threshold = 0.85  # Set default value if conversion fails
 
-    # print(confidence_threshold, "confidence")
-    
     # Predict on the frame
     detections = model.predict(source=frame, save=False, conf=confidence_threshold)
     detections = detections[0].numpy()
@@ -449,9 +364,6 @@ def detect_objects(collection_name):
                     text = class_name + " " + rounded_confidence + "%"
                     cv.putText(frame, text, (int(x_min), int(y_min) - 10), font, fontScale, (0, 0, 255), 1)
 
-                    # Check if detected object is a fly
-                    # print (detection.names[class_id])
-                    
                     if detection.names[class_id] == "fly":
                         print("fly detected!")
                         # unique_id = generate_unique_id()
@@ -465,17 +377,29 @@ def detect_objects(collection_name):
                         pil_image.save(file_name)
                         fly_info = {
                             "date_time": date_time_str,
-                            "confidence": rounded_confidence
+                            "confidence": float(rounded_confidence),
+                            "position":{
+                                "tl_x": round(float(x_min),3),
+                                "tl_y": round(float(y_min),3),
+                                "br_x": round(float(x_max),3),
+                                "br_y": round(float(y_max),3),
+                            },
+                            "_id": str(uuid.uuid4())  # Generate a UUID and convert to string
                         }
                         fly_data_per_frame.append(fly_info)  # Append fly data to the list
-                        
-        # Write data for every frame (real-time)
-        #Write data after every frame
-        # write_fly_data_to_json(fly_data_file_path, fly_data_per_frame)
-    # Save fly data to the MongoDB collection
-    if fly_data_per_frame:
-        db.collection_name.insert_many(fly_data_per_frame)  # Insert multiple documents at once
-        print(f"Saved fly data to collection: {collection_name}")
+
+        # Save fly data to the MongoDB collection
+        if fly_data_per_frame:
+            collection = db[collection_name]
+            for data in fly_data_per_frame:
+                print(type(data))
+                if data["_id"] not in unique_fly_data:
+                    unique_fly_data.add(data["_id"])
+                    filtered_data.append(data)
+
+            result = collection.insert_many(filtered_data)  # Insert multiple documents at once
+            print(f"Saved fly data to collection: {collection}")
+
     # Archive fly images to ZIP file in ../data/archive dir
 
     # Update the GUI with the processed frame
@@ -486,7 +410,7 @@ def detect_objects(collection_name):
 
     # Schedule the next frame capture and detection
     if running:
-        app.after(60, detect_objects(collection_name))
+        app.after(80, detect_objects)
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
