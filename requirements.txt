@@ -4,3 +4,5 @@ customtkinter
 ultralytics
 Pillow
 pywin32
+pymongo
+CTKMessagebox
