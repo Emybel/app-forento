@@ -369,7 +369,6 @@ def detect_objects():
                     if detection.names[class_id] == "fly":
                         print("fly detected!")
                         
-                        # now = datetime.datetime.now()
                         file_name = os.path.join(save_directory, f'detected-fly_{date_time_str}.png')
                         # Save the fly image using OpenCV or other libraries
                         cv.imwrite(secure_path, f'detected-fly_{date_time_str}.png')
