@@ -2,11 +2,13 @@ import os
 import sys
 import json
 import copy
-import uuid
+import win32
+import psutil
 import shutil 
 import random
 import zipfile
 import hashlib 
+import platform
 import datetime
 import winsound
 import cv2 as cv
@@ -58,7 +60,7 @@ unique_fly_data = set()
 filtered_data = []
 images_to_archive = []
 fly_data_per_frame = []
-secure_path = "/data/storage"
+storage_path = "./data/storage"
 
 # Custom function to check if an external camera is available
 def check_external_camera():
@@ -93,25 +95,28 @@ def get_save_directory():
     else:
         return None
 
-def secure_folder(folder_path):
-    """
-    Attempts to set restrictive permissions on the specified folder using the 'chmod' command.
+# def secure_folder(storage_path):
+#     """
+#     Attempts to set restrictive permissions on the specified folder using psutil.
 
-    Args:
-        folder_path (str): The path to the folder you want to secure.
+#     Args:
+#         folder_path (str): The path to the folder you want to secure.
 
-    Returns:
-        bool: True if the command execution was successful, False otherwise.
-    """
-    try:
-        # Set permissions to owner (you) having full access (read, write, execute)
-        # Group and others have no access (no read, write, or execute)
-        command = f"chmod 700 {folder_path}"
-        os.system(command)
-        return True
-    except Exception as e:
-        print(f"Error setting folder permissions: {e}")
-        return False
+#     Returns:
+#         bool: True if permissions were set successfully, False otherwise.
+#     """
+#     if platform.system() == 'windows':
+#         try:
+#             # Get the user object for the current user
+#             user = psutil.getuser()
+#             # Set permissions for the folder
+#             folder = psutil.Access(storage_path)
+#             folder.set_permission(user, psutil.PERM_READ | psutil.PERM_EXECUTE)
+#             return True
+#         except Exception as e:
+#             print(f"Error setting folder permissions: {e}")
+#             return False
+    
 def exit_program():
     """Performs cleanup tasks and exits the program."""
     global cap, fly_data_file, running
@@ -336,13 +341,11 @@ def detect_objects():
     detections = model.predict(source=frame, save=False, conf=confidence_threshold)
     detections = detections[0].numpy()
     
-    success = secure_folder(secure_path) # Secure the storage_path
-
-    
-    if success:
-        print(f"Successfully secured folder: {secure_path}")
-    else:
-        print("Failed to secure folder. Check permissions or run with administrator privileges.")
+    # success = secure_folder(storage_path) # Secure the storage_path
+    # if success:
+    #     print(f"Successfully secured folder: {storage_path}")
+    # else:
+    #     print("Failed to secure folder. Check permissions or run with administrator privileges.")
     
     if len(detections) != 0:
 
@@ -369,22 +372,25 @@ def detect_objects():
                     if detection.names[class_id] == "fly":
                         print("fly detected!")
                         
+                        # Use the same filename for both locations
                         file_name = os.path.join(save_directory, f'detected-fly_{date_time_str}.png')
-                        # Save the fly image using OpenCV or other libraries
-                        cv.imwrite(secure_path, f'detected-fly_{date_time_str}.png')
+                        file_name_storage = os.path.join(storage_path, f'detected-fly_{date_time_str}.png')
+                        
                         # Generate unique identifier (hash of filename)
                         image_hash = hashlib.sha256(f'detected-fly_{date_time_str}.png'.encode()).hexdigest()
                         images_to_archive.append(file_name)
                         rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)  # Convert to RGB
                         pil_image = Image.fromarray(rgb_frame)  # Convert to PIL Image
-                        winsound.Beep(3000, 500)
                         pil_image.save(file_name)
+                        pil_image.save(file_name_storage)
+                        winsound.Beep(3000, 500)
+                        
                         fly_info = [
                                 {
                                     "time": time_str,  # Use the same variable containing the time string
                                     "confidence": rounded_confidence,
                                     "image_id": image_hash,  # Store image hash
-                                    "image_path": f"{secure_path}/'detected-fly_{date_time_str}.png'",  # Store relative path
+                                    "image_path": f"{storage_path}/'detected-fly_{date_time_str}.png'",  # Store relative path
                                     "position": {
                                         "tl_x": round(float(x_min), 3),
                                         "tl_y": round(float(y_min), 3),
@@ -406,6 +412,7 @@ def detect_objects():
 
     # Archive fly images to ZIP file in ../data/archive dir
 
+
     # Update the GUI with the processed frame
     img = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
     photo = customtkinter.CTkImage(img, size=(860, 820))
@@ -415,6 +422,55 @@ def detect_objects():
     # Schedule the next frame capture and detection
     if running:
         app.after(80, detect_objects)
+
+# def send_email_report(recipients, archive_path):
+#     """
+#     Sends an email report with an attachment to a list of recipients.
+
+#     Args:
+#         recipients: A list of email addresses as strings.
+#         report_path: The path to the PDF report file (optional).
+#         archive_path: The path to the zipped archive of images (optional).
+#     """
+
+#     # Contruct Outlook app instance (adjust error handling as needed)
+#     try:
+#         olApp = win32.Dispatch('Outlook.Application')
+#         olNS = olApp.GetNameSpace('MAPI')
+#     except Exception as e:
+#         print(f"Error connecting to Outlook: {e}")
+#         return
+
+#     # Construct the email item object
+#     mailItem = olApp.CreateItem(0)
+#     mailItem.Subject = "Daily Detection Report - [date]"
+#     mailItem.BodyFormat = 1
+#     mailItem.Body = f"""
+#     Hi,
+
+#     This is a daily email with relevant information about detections made on {datetime.now().strftime('%m-%d-%Y')}.
+
+#     {'' if not archive_path else f'Please see the attached zip archive for captured fly images.\n'}
+
+#     Best regards,
+#     Forento
+#     """
+    
+#     if archive_path:
+#         mailItem.Attachments.Add(archive_path)
+
+#     # Send email to all recipients
+#     for recipient in recipients:
+#         mailItem.To = recipient
+#         mailItem.Send()
+#         print(f"Email sent to: {recipient}")
+
+#     # Optional: Close Outlook instance (consider resource management)
+#     olApp.Quit()
+
+#     # Assuming you have a list of recipient email addresses
+#     recipient_emails = ["belaidimane@gmail.com"]
+#     send_email_report(recipient_emails, archive_path)
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
