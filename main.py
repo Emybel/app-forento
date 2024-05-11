@@ -54,7 +54,6 @@ cap = None
 # Global variables
 running = False
 save_directory = None
-# collection_name = " "
 unique_fly_data = set()
 filtered_data = []
 images_to_archive = []
@@ -93,35 +92,6 @@ def get_save_directory():
         return folder_path
     else:
         return None
-
-# Function to create a new collection for the day's fly data
-# def new_collection(client, db_name, collection_prefix="detaction-"):
-#     """
-#     Creates a new daily collection in the specified MongoDB database.
-
-#     Args:
-#         client (MongoClient): A MongoClient instance connected to the MongoDB server.
-#         db_name (str): The name of the database to create the collection in.
-#         collection_prefix (str, optional): The prefix for the collection name. Defaults to "detection-".
-
-#     Returns:
-#         str: The name of the newly created collection, or None if it already exists.
-#     """
-#     global collection_name
-#     db = client[db_name] # Get the database object
-#     today = datetime.datetime.now().strftime("%m-%d-%Y")
-#     collection_name = f"{collection_prefix}{today}"
-    
-#     if collection_name not in db.list_collection_names():
-#         try:
-#             db.create_collection(collection_name)
-#             return collection_name
-#         except Exception as e:
-#             print(f"Error creating collection: {e}")
-#             return None
-#     else:
-#         print(f"Collection '{collection_name}' already exists.")
-#         return collection_name
 
 def secure_folder(folder_path):
     """
@@ -339,6 +309,11 @@ def resume_detection():
 
 def detect_objects():
     global running, cap, save_directory, collection_name
+    
+    now = datetime.datetime.now()
+    date_str = now.strftime("%m-%d-%Y")
+    time_str = now.strftime("%H:%M:%S")
+    date_time_str = now.strftime("%m-%d-%y_%H-%M-%S")
 
     if not running:
         return
@@ -363,6 +338,7 @@ def detect_objects():
     
     success = secure_folder(secure_path) # Secure the storage_path
 
+    
     if success:
         print(f"Successfully secured folder: {secure_path}")
     else:
@@ -393,10 +369,7 @@ def detect_objects():
                     if detection.names[class_id] == "fly":
                         print("fly detected!")
                         
-                        now = datetime.datetime.now()
-                        date_time_str = now.strftime("%m-%d-%y_%H-%M-%S")
-                        # date_str = now.strftime("%m-%d-%y")
-                        time_str = now.strftime("%H:%M:%S")
+                        # now = datetime.datetime.now()
                         file_name = os.path.join(save_directory, f'detected-fly_{date_time_str}.png')
                         # Save the fly image using OpenCV or other libraries
                         cv.imwrite(secure_path, f'detected-fly_{date_time_str}.png')
@@ -407,8 +380,7 @@ def detect_objects():
                         pil_image = Image.fromarray(rgb_frame)  # Convert to PIL Image
                         winsound.Beep(3000, 500)
                         pil_image.save(file_name)
-                        fly_info = {
-                            "detections": [
+                        fly_info = [
                                 {
                                     "time": time_str,  # Use the same variable containing the time string
                                     "confidence": rounded_confidence,
@@ -421,14 +393,10 @@ def detect_objects():
                                         "br_y": round(float(y_max), 3),
                                     }
                                 }
-                            ]
-                        }
-                        fly_data_per_frame.append(fly_info)  # Append fly data to the list
-                        
-                        if fly_data_per_frame:
-                            # collection = db[collection_name]
-                            query = {"date": date_time_str}  # Search for document with matching date
-                            update = {"$push": {"detections": {"$each": fly_data_per_frame}}}  # Update with new detections
+                            ]                        
+                        if fly_info:
+                            query = {"date": date_str}  # Search for document with matching date
+                            update = {"$push": {"detections": {"$each": fly_info}}}  # Update with new detections
                             result = collection.find_one_and_update(query, update, upsert=True)  # Upsert if not found
 
                             if result:
@@ -436,18 +404,6 @@ def detect_objects():
                             else:
                                 print(f"No document found for date: {date_time_str}. Creating new collection.")
                                 # Consider creating a new document here if desired (optional)
-
-        # # Save fly data to the MongoDB collection
-        # if fly_data_per_frame:
-        #     collection = db[collection_name]
-        #     for data in fly_data_per_frame:
-        #         print(type(data))
-        #         if data["_id"] not in unique_fly_data:
-        #             unique_fly_data.add(data["_id"])
-        #             filtered_data.append(data)
-
-            # result = collection.insert_many(filtered_data)  # Insert multiple documents at once
-            # print(f"Saved fly data to collection: {collection}")
 
     # Archive fly images to ZIP file in ../data/archive dir
 
@@ -469,43 +425,3 @@ app.mainloop()
 if cap:
     cap.release()
 cv.destroyAllWindows()
-
-# detections = [
-#     {
-#         "date": datetime.now(), 
-#         "time": "10:00 AM", 
-#         "fly_image": "fly1.jpg", 
-#         "confidence": 0.85, 
-#         "position": [100, 200]
-#     },
-#     {"date": datetime.now(), "time": "10:05 AM", "fly_image": "fly2.jpg", "confidence": 0.78, "position": [150, 250]},
-#     {"date": datetime.now(), "time": "10:10 AM", "fly_image": "fly3.jpg", "confidence": 0.91, "position": [200, 300]}
-# ]
-
-# {
-#   "_id": ObjectId("..."),
-#   "date": ISODate("2024-05-09T10:00:00Z"),
-#   "detections": [
-#     {
-#       "date": ISODate("2024-05-09T10:00:00Z"),
-#       "time": "10:00 AM",
-#       "fly_image": "fly1.jpg",
-#       "confidence": 0.85,
-#       "position": [100, 200]
-#     },
-#     {
-#       "date": ISODate("2024-05-09T10:05:00Z"),
-#       "time": "10:05 AM",
-#       "fly_image": "fly2.jpg",
-#       "confidence": 0.78,
-#       "position": [150, 250]
-#     },
-#     {
-#       "date": ISODate("2024-05-09T10:10:00Z"),
-#       "time": "10:10 AM",
-#       "fly_image": "fly3.jpg",
-#       "confidence": 0.91,
-#       "position": [200, 300]
-#     }
-#   ]
-# }
