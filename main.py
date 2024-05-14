@@ -1,8 +1,6 @@
 import os
 import sys
-import json
 import copy
-import win32
 import psutil
 import shutil 
 import random
@@ -10,16 +8,20 @@ import zipfile
 import hashlib 
 import platform
 import datetime
+import schedule
 import winsound
 import cv2 as cv
+import collections
 import numpy as np
 import ultralytics
 import customtkinter
+import win32com.client
 from PIL import Image
 from ultralytics import YOLO
 from util.createjson import *
 from tkinter import filedialog
 from pymongo import MongoClient
+from collections import defaultdict
 from CTkMessagebox import CTkMessagebox
 # from customtkinter import CTkMessagebox
 
@@ -61,6 +63,12 @@ filtered_data = []
 images_to_archive = []
 fly_data_per_frame = []
 storage_path = "./data/storage"
+archive_path = "./data/archive"
+
+now = datetime.datetime.now()
+date_str = now.strftime("%m-%d-%Y")
+time_str = now.strftime("%H:%M:%S")
+date_time_str = now.strftime("%m-%d-%y_%H-%M-%S")
 
 # Custom function to check if an external camera is available
 def check_external_camera():
@@ -91,32 +99,11 @@ def is_built_in_webcam(cap):
 def get_save_directory():
     folder_path = filedialog.askdirectory(title="Select Save Directory")
     if folder_path:
+        print(f"Selected save directory: {folder_path}")
         return folder_path
     else:
         return None
 
-# def secure_folder(storage_path):
-#     """
-#     Attempts to set restrictive permissions on the specified folder using psutil.
-
-#     Args:
-#         folder_path (str): The path to the folder you want to secure.
-
-#     Returns:
-#         bool: True if permissions were set successfully, False otherwise.
-#     """
-#     if platform.system() == 'windows':
-#         try:
-#             # Get the user object for the current user
-#             user = psutil.getuser()
-#             # Set permissions for the folder
-#             folder = psutil.Access(storage_path)
-#             folder.set_permission(user, psutil.PERM_READ | psutil.PERM_EXECUTE)
-#             return True
-#         except Exception as e:
-#             print(f"Error setting folder permissions: {e}")
-#             return False
-    
 def exit_program():
     """Performs cleanup tasks and exits the program."""
     global cap, fly_data_file, running
@@ -246,6 +233,11 @@ pause_button.pack(pady=10, padx=10)
 play_button = customtkinter.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
 play_button.pack(pady=10, padx=10)
 
+# Create a new button in the sidebar
+send_email_button = customtkinter.CTkButton(sidebar_frame, text="Send Email", command=lambda: send_email_report(latest_zip_path), state="disabled")
+send_email_button.pack(pady=10, padx=10, fill="x")
+
+
 # **Add copyright text with white color and centered alignment**
 copyright_text = customtkinter.CTkLabel(footer_frame, text="© 2024 YOTTA", text_color="gray", anchor="center",)
 copyright_text.pack(padx=10, pady=10, fill="x")
@@ -253,9 +245,6 @@ copyright_text.pack(padx=10, pady=10, fill="x")
 def start_detection():
     global cap, running, save_directory, client
     
-    # Create a new collection in mongodb to save the fly data
-    # collection_name = new_collection(client,"forento", collection_prefix="detection-")
-        
     # Check if an external camera is available
     cap = check_external_camera()
     if not cap:
@@ -266,7 +255,9 @@ def start_detection():
         save_directory = get_save_directory()
         if not save_directory:
             return  # Exit function if user cancels save directory selection
-
+        else:
+            print(f"Using save directory: {save_directory}")
+    
     running = True
     start_button.configure(state="disabled")
     stop_button.configure(state="normal")
@@ -274,7 +265,7 @@ def start_detection():
     pause_button.configure(state="normal")  # Enable pause button when detection starts
     confidence_entry.configure(state="disabled")  # Disable confidence entry editing
     exit_button.configure(state="disabled") # Disable exit button when detection starts
-    
+    send_email_button.configure(state="normal")  # Enable the "Send Email" button
     detect_objects()  # Pass the collection object
 
 def stop_detection():
@@ -285,6 +276,7 @@ def stop_detection():
     open_folder_button.configure(state="normal")
     pause_button.configure(state="disable")
     exit_button.configure(state="normal")
+    send_email_button.configure(state="disable")  # disable the "Send Email" button
     clear_image_label()
 
 def open_save_folder():
@@ -312,14 +304,45 @@ def resume_detection():
         confidence_entry.configure(state="disabled")  # Disable editing the entry
         start_detection()  # Call start_detection to handle further logic
 
+def archive_images(storage_path, archive_path):
+    # Create the save_directory if it doesn't exist
+    os.makedirs(archive_path, exist_ok=True)
+
+    # Group files by creation date
+    files_by_date = {}
+    for file in os.listdir(storage_path):
+        if file.endswith((".jpg", ".jpeg", ".png")):
+            file_path = os.path.join(storage_path, file)
+            file_name = os.path.basename(file_path)
+            print(f'File name : {file_name}')
+            date_str = file_name.split("_")[1]
+            print(f'date part: {date_str}')
+            try:
+                creation_date = datetime.datetime.now().strptime(date_str, "%m-%d-%y").date()
+                if creation_date not in files_by_date:
+                    files_by_date[creation_date] = []
+                files_by_date[creation_date].append(file_path)
+            except ValueError:
+                print(f"Skipping file {file_name} due to invalid date format")
+
+    # Create a zip file for each date
+    for date, files in files_by_date.items():
+        zip_filename = f"archive_{date.strftime('%Y%m%d')}.zip"
+        zip_path = os.path.join(storage_path, zip_filename)
+        with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            for file_path in files:
+                archive.write(file_path, os.path.basename(file_path))
+                print(f"Archiving {os.path.basename(file_path)} in {zip_filename}")
+        
+        # Move the ZIP file to the save_directory
+        zip_src_path = os.path.join(storage_path, zip_filename)
+        zip_dest_path = os.path.join(archive_path, zip_filename)
+        shutil.move(zip_src_path, zip_dest_path)
+        print(f"Moved {zip_filename} to {archive_path}")
 def detect_objects():
     global running, cap, save_directory, collection_name
     
-    now = datetime.datetime.now()
-    date_str = now.strftime("%m-%d-%Y")
-    time_str = now.strftime("%H:%M:%S")
-    date_time_str = now.strftime("%m-%d-%y_%H-%M-%S")
-
+    
     if not running:
         return
 
@@ -340,12 +363,6 @@ def detect_objects():
     # Predict on the frame
     detections = model.predict(source=frame, save=False, conf=confidence_threshold)
     detections = detections[0].numpy()
-    
-    # success = secure_folder(storage_path) # Secure the storage_path
-    # if success:
-    #     print(f"Successfully secured folder: {storage_path}")
-    # else:
-    #     print("Failed to secure folder. Check permissions or run with administrator privileges.")
     
     if len(detections) != 0:
 
@@ -372,9 +389,9 @@ def detect_objects():
                     if detection.names[class_id] == "fly":
                         print("fly detected!")
                         
-                        # Use the same filename for both locations
-                        file_name = os.path.join(save_directory, f'detected-fly_{date_time_str}.png')
-                        file_name_storage = os.path.join(storage_path, f'detected-fly_{date_time_str}.png')
+                        # Generate filenames with the global date_time_str
+                        file_name = os.path.join(save_directory, f'detected-fly_{datetime.datetime.now().strftime("%m-%d-%y_%H-%M-%S")}.png')
+                        file_name_storage = os.path.join(storage_path, f'detected-fly_{datetime.datetime.now().strftime("%m-%d-%y_%H-%M-%S")}.png')
                         
                         # Generate unique identifier (hash of filename)
                         image_hash = hashlib.sha256(f'detected-fly_{date_time_str}.png'.encode()).hexdigest()
@@ -410,9 +427,6 @@ def detect_objects():
                                 print(f"No document found for date: {date_time_str}. Creating new collection.")
                                 # Consider creating a new document here if desired (optional)
 
-    # Archive fly images to ZIP file in ../data/archive dir
-
-
     # Update the GUI with the processed frame
     img = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
     photo = customtkinter.CTkImage(img, size=(860, 820))
@@ -423,60 +437,124 @@ def detect_objects():
     if running:
         app.after(80, detect_objects)
 
-# def send_email_report(recipients, archive_path):
-#     """
-#     Sends an email report with an attachment to a list of recipients.
+def send_email_report(latest_zip_path):
+    """
+    Sends an email report with an attachment.
 
-#     Args:
-#         recipients: A list of email addresses as strings.
-#         report_path: The path to the PDF report file (optional).
-#         archive_path: The path to the zipped archive of images (optional).
-#     """
+    Args:
+        archive_path: The path to the zipped archive of images (optional).
+    """
 
-#     # Contruct Outlook app instance (adjust error handling as needed)
-#     try:
-#         olApp = win32.Dispatch('Outlook.Application')
-#         olNS = olApp.GetNameSpace('MAPI')
-#     except Exception as e:
-#         print(f"Error connecting to Outlook: {e}")
-#         return
+    # Contruct Outlook app instance (adjust error handling as needed)
+    try:
+        outlook = win32com.client.Dispatch('Outlook.Application')
+    except Exception as e:
+        print(f"Error connecting to Outlook: {e}")
+        return
 
-#     # Construct the email item object
-#     mailItem = olApp.CreateItem(0)
-#     mailItem.Subject = "Daily Detection Report - [date]"
-#     mailItem.BodyFormat = 1
-#     mailItem.Body = f"""
-#     Hi,
+    # Construct the email item object
+    mailItem = outlook.CreateItem(0)
+    mailItem.SentOnBehalfOfName = "forentoapp@outlook.com"  # Set the sender email address
+    mailItem.To = "imanebelaid@hotmail.com"
+    mailItem.Subject = f"Daily Detection Report - {datetime.datetime.now().strftime('%m-%d-%Y')}"
+    mailItem.BodyFormat = 1
 
-#     This is a daily email with relevant information about detections made on {datetime.now().strftime('%m-%d-%Y')}.
+    if archive_path and os.path.exists(archive_path):
+        mailItem.Body = f"""
+        Hi,
 
-#     {'' if not archive_path else f'Please see the attached zip archive for captured fly images.\n'}
+        This is a daily email with relevant information about detections made on {datetime.datetime.now().strftime('%m-%d-%Y')}.
 
-#     Best regards,
-#     Forento
-#     """
+        {'' if not archive_path else f'Please see the attached zip archive for captured fly images.'}\n
+
+        Best regards,
+        Forento
+        """
+
+        mailItem.Attachments.Add(archive_path)
+    else:
+            mailItem.Body = f"""
+            Hi,
+
+            No flies were detected on {datetime.datetime.now().strftime('%m-%d-%Y')}.
+
+            Best regards,
+            Forento
+            """
+
+    mailItem.Display()
+        
+
+    # Optional: Close Outlook instance (consider resource management)
+    outlook.Quit()
+
+def clear_save_directory(archive_dir, days=30):
+    """
+    Clears the archive_dir by removing ZIP files older than the specified number of days.
+
+    Args:
+        archive_dir (str): The path to the archive directory.
+        days (int): The number of days to keep the ZIP files (default is 30 days).
+    """
+    now = datetime.datetime.now()
+    cutoff_date = now - datetime.timedelta(days=days)
+
+    for file_name in os.listdir(archive_dir):
+        file_path = os.path.join(archive_dir, file_name)
+        if file_name.endswith(".zip"):
+            # Remove the file extension before parsing the date
+            date_part = file_name.split("_")[1].split(".")[0]
+            try:
+                file_date = datetime.datetime.strptime(file_name.split("_")[1], "%Y%m%d").date()
+                if file_date < cutoff_date:
+                    os.remove(file_path)
+                    print(f"Removed {file_path}")
+            except Exception as e:
+                print(f"Skipping file {file_name} due to invalid date format")
+        print(f"Cleared {archive_dir} of ZIP files older than {days} days.")
+
+def archive_and_clear():
+    # Archive images
+    archive_images(storage_path, archive_path)
     
-#     if archive_path:
-#         mailItem.Attachments.Add(archive_path)
+    # Get the path to the latest ZIP file
+    latest_zip_path = os.path.join(archive_path, f"archive_{datetime.datetime.now().strftime('%Y%m%d')}.zip")
+    print(f"Latest ZIP file path: {latest_zip_path}")
+    
+    # Check if the latest_zip_path exists
+    if not os.path.isfile(latest_zip_path):
+        print(f"Error: {latest_zip_path} is not a valid file path.")
+        return
+    
+    try:
+        send_email_report(latest_zip_path)
+    except Exception as e:
+        print(f"Error sending email report: {e}")
+    
+    # Clear the storage and save directories
+    shutil.rmtree(storage_path)
+    os.makedirs(storage_path)
 
-#     # Send email to all recipients
-#     for recipient in recipients:
-#         mailItem.To = recipient
-#         mailItem.Send()
-#         print(f"Email sent to: {recipient}")
+    # Clear the archive_path of old ZIP files (e.g., older than 30 days)
+    clear_save_directory(archive_path, days=30)
 
-#     # Optional: Close Outlook instance (consider resource management)
-#     olApp.Quit()
+def run_scheduled_tasks():
+    schedule.run_pending()
+    app.after(60000, run_scheduled_tasks)  # Check for scheduled tasks every minute
 
-#     # Assuming you have a list of recipient email addresses
-#     recipient_emails = ["belaidimane@gmail.com"]
-#     send_email_report(recipient_emails, archive_path)
+# Schedule the archive_and_clear function to run at 23:59 (11:59 PM) every day
+schedule.every().day.at("13:23").do(archive_and_clear)
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
+
+# Run the scheduled tasks loop within the main application loop
+run_scheduled_tasks()
+
 app.mainloop()
 
 # Release the capture when the app is closed
 if cap:
     cap.release()
 cv.destroyAllWindows()
+
