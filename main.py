@@ -1,28 +1,35 @@
 import os
+import re
 import sys
 import copy
 import psutil
-import shutil 
+import shutil
 import random
+import smtplib
 import zipfile
-import hashlib 
+import hashlib
 import platform
 import datetime
 import schedule
 import winsound
+import threading 
 import cv2 as cv
 import collections
 import numpy as np
 import ultralytics
 import customtkinter
-import win32com.client
 from PIL import Image
+from email import encoders
 from ultralytics import YOLO
 from util.createjson import *
 from tkinter import filedialog
 from pymongo import MongoClient
-from collections import defaultdict
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from datetime import datetime, timedelta
 from CTkMessagebox import CTkMessagebox
+from email.mime.multipart import MIMEMultipart
+# from collections import defaultdict
 # from customtkinter import CTkMessagebox
 
 client = MongoClient("localhost", 27017)
@@ -65,7 +72,7 @@ fly_data_per_frame = []
 storage_path = "./data/storage"
 archive_path = "./data/archive"
 
-now = datetime.datetime.now()
+now = datetime.now()
 date_str = now.strftime("%m-%d-%Y")
 time_str = now.strftime("%H:%M:%S")
 date_time_str = now.strftime("%m-%d-%y_%H-%M-%S")
@@ -318,7 +325,7 @@ def archive_images(storage_path, archive_path):
             date_str = file_name.split("_")[1]
             print(f'date part: {date_str}')
             try:
-                creation_date = datetime.datetime.now().strptime(date_str, "%m-%d-%y").date()
+                creation_date = datetime.now().strptime(date_str, "%m-%d-%y").date()
                 if creation_date not in files_by_date:
                     files_by_date[creation_date] = []
                 files_by_date[creation_date].append(file_path)
@@ -390,8 +397,8 @@ def detect_objects():
                         print("fly detected!")
                         
                         # Generate filenames with the global date_time_str
-                        file_name = os.path.join(save_directory, f'detected-fly_{datetime.datetime.now().strftime("%m-%d-%y_%H-%M-%S")}.png')
-                        file_name_storage = os.path.join(storage_path, f'detected-fly_{datetime.datetime.now().strftime("%m-%d-%y_%H-%M-%S")}.png')
+                        file_name = os.path.join(save_directory, f'detected-fly_{datetime.now().strftime("%m-%d-%y_%H-%M-%S")}.png')
+                        file_name_storage = os.path.join(storage_path, f'detected-fly_{datetime.now().strftime("%m-%d-%y_%H-%M-%S")}.png')
                         
                         # Generate unique identifier (hash of filename)
                         image_hash = hashlib.sha256(f'detected-fly_{date_time_str}.png'.encode()).hexdigest()
@@ -437,56 +444,81 @@ def detect_objects():
     if running:
         app.after(80, detect_objects)
 
-def send_email_report(latest_zip_path):
+def send_email_report(archive_dir):
     """
     Sends an email report with an attachment.
 
     Args:
-        archive_path: The path to the zipped archive of images (optional).
+        archive_dir: The directory path where the zipped archives are stored.
     """
 
-    # Contruct Outlook app instance (adjust error handling as needed)
-    try:
-        outlook = win32com.client.Dispatch('Outlook.Application')
-    except Exception as e:
-        print(f"Error connecting to Outlook: {e}")
-        return
+    # Email configuration
+    sender_email = "imanebelaid@hotmail.com"
+    to_recipients = ["belaidimane@gmail.com"]
+    # cc_recipients = ["recipient2@example.com", "recipient3@example.com"]
+    subject = f"Daily Detection Report - {datetime.datetime.now().strftime('%m-%d-%Y')}"
 
-    # Construct the email item object
-    mailItem = outlook.CreateItem(0)
-    mailItem.SentOnBehalfOfName = "forentoapp@outlook.com"  # Set the sender email address
-    mailItem.To = "imanebelaid@hotmail.com"
-    mailItem.Subject = f"Daily Detection Report - {datetime.datetime.now().strftime('%m-%d-%Y')}"
-    mailItem.BodyFormat = 1
+    # Find the zip file for the current date
+    current_date = datetime.datetime.now().date()
+    zip_pattern = r"archive_(\d{8})\.zip"
+    zip_filename = f"archive_{current_date.strftime('%Y%m%d')}.zip"
+    zip_path = os.path.join(archive_dir, zip_filename)
 
-    if archive_path and os.path.exists(archive_path):
-        mailItem.Body = f"""
-        Hi,
+    if os.path.exists(zip_path):
+        body_text = f"""Hi,
 
-        This is a daily email with relevant information about detections made on {datetime.datetime.now().strftime('%m-%d-%Y')}.
+        This is a daily email with relevant information about detections made on {current_date.strftime('%m-%d-%Y')}.
+        Please see the attached zip archive for captured fly images.
 
-        {'' if not archive_path else f'Please see the attached zip archive for captured fly images.'}\n
+        Best regards,
+        Forento
+        """
+    else:
+        body_text = f"""Hi,
+
+        This is a daily email with relevant information about detections made on {current_date.strftime('%m-%d-%Y')}.
+        No flies were detected.
 
         Best regards,
         Forento
         """
 
-        mailItem.Attachments.Add(archive_path)
-    else:
-            mailItem.Body = f"""
-            Hi,
+    # Create message
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = to_recipients
+    # msg["To"] = ", ".join(receiver_emails)  # Join the list of recipients with commas
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body_text, "plain"))
 
-            No flies were detected on {datetime.datetime.now().strftime('%m-%d-%Y')}.
+    # Attach the zip file if it exists
+    if os.path.exists(zip_path):
+        with open(zip_path, "rb") as attachment:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(attachment.read())
+        encoders.encode_base64(part)
+        part.add_header(
+            "Content-Disposition",
+            f"attachment; filename={os.path.basename(zip_path)}",
+        )
+        msg.attach(part)
 
-            Best regards,
-            Forento
-            """
+    app_pwd = "ipwtekmnicehktdm"
+    server = smtplib.SMTP(host='smtp-mail.outlook.com', port=587)
+    server.starttls()
+    server.login(sender_email, app_pwd)
 
-    mailItem.Display()
-        
+    status_code, response = server.ehlo()
+    print(f"Echoing server : {status_code} {response}")
 
-    # Optional: Close Outlook instance (consider resource management)
-    outlook.Quit()
+    server.send_message(msg, from_addr=sender_email, to_addrs=to_recipients) # to_addrs = to_receivers if we add Cc recipients
+
+
+def send_email_in_thread(archive_path):
+    try:
+        send_email_report(archive_path)
+    except Exception as e:
+        print(f"Error sending email report: {e}")
 
 def clear_save_directory(archive_dir, days=30):
     """
@@ -496,7 +528,7 @@ def clear_save_directory(archive_dir, days=30):
         archive_dir (str): The path to the archive directory.
         days (int): The number of days to keep the ZIP files (default is 30 days).
     """
-    now = datetime.datetime.now()
+    now = datetime.now()
     cutoff_date = now - datetime.timedelta(days=days)
 
     for file_name in os.listdir(archive_dir):
@@ -505,7 +537,7 @@ def clear_save_directory(archive_dir, days=30):
             # Remove the file extension before parsing the date
             date_part = file_name.split("_")[1].split(".")[0]
             try:
-                file_date = datetime.datetime.strptime(file_name.split("_")[1], "%Y%m%d").date()
+                file_date = datetime.strptime(file_name.split("_")[1], "%Y%m%d").date()
                 if file_date < cutoff_date:
                     os.remove(file_path)
                     print(f"Removed {file_path}")
@@ -517,20 +549,10 @@ def archive_and_clear():
     # Archive images
     archive_images(storage_path, archive_path)
     
-    # Get the path to the latest ZIP file
-    latest_zip_path = os.path.join(archive_path, f"archive_{datetime.datetime.now().strftime('%Y%m%d')}.zip")
-    print(f"Latest ZIP file path: {latest_zip_path}")
-    
-    # Check if the latest_zip_path exists
-    if not os.path.isfile(latest_zip_path):
-        print(f"Error: {latest_zip_path} is not a valid file path.")
-        return
-    
-    try:
-        send_email_report(latest_zip_path)
-    except Exception as e:
-        print(f"Error sending email report: {e}")
-    
+    # Start a new thread for sending the email
+    email_thread = threading.Thread(target=send_email_in_thread, args=(archive_path,))
+    email_thread.start()
+
     # Clear the storage and save directories
     shutil.rmtree(storage_path)
     os.makedirs(storage_path)
@@ -543,7 +565,7 @@ def run_scheduled_tasks():
     app.after(60000, run_scheduled_tasks)  # Check for scheduled tasks every minute
 
 # Schedule the archive_and_clear function to run at 23:59 (11:59 PM) every day
-schedule.every().day.at("13:23").do(archive_and_clear)
+schedule.every().day.at("10:22").do(archive_and_clear)
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
