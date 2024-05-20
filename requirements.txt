@@ -3,4 +3,6 @@ numpy
 customtkinter
 ultralytics
 Pillow
-winsound
+pywin32
+pymongo
+CTKMessagebox
