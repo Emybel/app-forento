@@ -12,7 +12,14 @@ This guide will help you set up the environment to contribute to the Forento Fly
 1. **Install Python:**
    - Download and install Python from the official website (https://www.python.org/downloads/). Make sure to add Python to your system path during installation.
 
-2. **Create a virtual environment (recommended):**
+2. **Clone the repository:**
+   - Use Git to clone the Forento Fly Detector repository from GitHub. Replace `<username>` with your GitHub username and `<repository-name>` with the actual repository name:
+
+     ```bash
+     git clone [https://github.com/](https://github.com/)<username>/<repository-name>.git
+     ```
+
+3. **Create a virtual environment (recommended):**
    - Open a terminal or command prompt.
    - Run the following command to create a virtual environment named `venv`:
 
@@ -28,13 +35,6 @@ This guide will help you set up the environment to contribute to the Forento Fly
 
      # On Linux/macOS
      source venv/bin/activate
-     ```
-
-3. **Clone the repository:**
-   - Use Git to clone the Forento Fly Detector repository from GitHub. Replace `<username>` with your GitHub username and `<repository-name>` with the actual repository name:
-
-     ```bash
-     git clone [https://github.com/](https://github.com/)<username>/<repository-name>.git
      ```
 
 4. **Install dependencies:**
