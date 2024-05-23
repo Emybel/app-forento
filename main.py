@@ -240,9 +240,9 @@ pause_button.pack(pady=10, padx=10)
 play_button = customtkinter.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
 play_button.pack(pady=10, padx=10)
 
-# Create a new button in the sidebar
-send_email_button = customtkinter.CTkButton(sidebar_frame, text="Send Email", command=lambda: send_email_report(latest_zip_path), state="disabled")
-send_email_button.pack(pady=10, padx=10, fill="x")
+# # Create a new button in the sidebar
+# send_email_button = customtkinter.CTkButton(sidebar_frame, text="Send Email", command=lambda: send_email_report(latest_zip_path), state="disabled")
+# send_email_button.pack(pady=10, padx=10, fill="x")
 
 
 # **Add copyright text with white color and centered alignment**
@@ -272,7 +272,7 @@ def start_detection():
     pause_button.configure(state="normal")  # Enable pause button when detection starts
     confidence_entry.configure(state="disabled")  # Disable confidence entry editing
     exit_button.configure(state="disabled") # Disable exit button when detection starts
-    send_email_button.configure(state="normal")  # Enable the "Send Email" button
+    # send_email_button.configure(state="normal")  # Enable the "Send Email" button
     detect_objects()  # Pass the collection object
 
 def stop_detection():
@@ -283,7 +283,7 @@ def stop_detection():
     open_folder_button.configure(state="normal")
     pause_button.configure(state="disable")
     exit_button.configure(state="normal")
-    send_email_button.configure(state="disable")  # disable the "Send Email" button
+    # send_email_button.configure(state="disable")  # disable the "Send Email" button
     clear_image_label()
 
 def open_save_folder():
@@ -565,7 +565,7 @@ def run_scheduled_tasks():
     app.after(60000, run_scheduled_tasks)  # Check for scheduled tasks every minute
 
 # Schedule the archive_and_clear function to run at 23:59 (11:59 PM) every day
-schedule.every().day.at("10:22").do(archive_and_clear)
+schedule.every().day.at("11:20").do(archive_and_clear)
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)

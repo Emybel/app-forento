@@ -2,7 +2,10 @@ import os
 import PIL
 import sys
 import cv2 as cv
+import tkinter as tk
+from tkinter import ttk
 from tkinter import *
+from CTkTable import *
 import customtkinter as ctk
 from PIL import Image, ImageTk
 from CTkMessagebox import CTkMessagebox
@@ -70,6 +73,8 @@ def ask_question():
     else:
         print("Operation canceled.")
 
+def login():
+    return print ("Login successfully")
 
 
 ctk.set_appearance_mode("dark")
@@ -80,8 +85,12 @@ app = ctk.CTk()
 app.title("CTk - Tabviews")
 app.geometry("1200x800")
 
-def login():
-    return print ("Login successfully")
+value = [[1,2,3,4,5],
+         [1,2,3,4,5],
+         [1,2,3,4,5],
+         [1,2,3,4,5],
+         [1,2,3,4,5]]
+
 # **Create a main container frame**
 main_container = ctk.CTkFrame(app)
 main_container.pack(fill="both", expand=True)  # Fills entire window
@@ -120,7 +129,7 @@ detection = my_tab.add("Detection")
 case_manager = my_tab.add("Case Manager")
 user_manager = my_tab.add("User Manager")
 
-# Login form
+# **Login form
 auth_frame = ctk.CTkFrame(auth, 
                         border_width=1,
                         border_color="#101c12",
@@ -191,6 +200,15 @@ pause_button.pack(pady=10, padx=10)
 play_button = ctk.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
 play_button.pack(pady=10, padx=10)
 
+# **Create Table view for case manager
+tableview = ctk.CTkFrame(master=case_manager)
+tableview.pack(pady=10, padx=10, fill="both")
+# Scrollbar
+treeScroll = ttk.Scrollbar(tableview)
+treeScroll.pack(side="right", fill="y")
+
+table = CTkTable(master=tableview, row=5, column=5, values=value)
+table.pack(expand=True, fill="both", padx=20, pady=10)
 
 
 
