@@ -1,6 +1,7 @@
 import os
 import PIL
 import sys
+import pymongo
 import cv2 as cv
 import tkinter as tk
 from tkinter import ttk
@@ -9,6 +10,19 @@ from CTkTable import *
 import customtkinter as ctk
 from PIL import Image, ImageTk
 from CTkMessagebox import CTkMessagebox
+
+# Function to connect to MongoDB database
+def connect_to_db():
+    client = pymongo.MongoClient("mongodb://localhost:27017/")  # Replace with your connection string
+    db = client["forento"]  # Replace "forento" with your database name
+    case_collection = db["cases"]  # Replace "cases" with your collection name
+    user_collection = db["users"]  # Replace "users" with your collection name
+    return case_collection, user_collection
+
+# Function to retrieve user list
+def get_user_list(user_collection):
+    users = list(user_collection.find({}, {"_id": 0, "full_name": 1}))  # Project full names only
+    return [user["full_name"] for user in users]
 
 # Custom function to check if an external camera is available
 def check_external_camera():
@@ -76,7 +90,124 @@ def ask_question():
 def login():
     return print ("Login successfully")
 
+class CaseManager(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
 
+        # Create table frame
+        self.table_frame = ctk.CTkFrame(self)
+        self.table_frame.pack(pady=10, padx=10, fill="both")
+
+        # Scrollbar
+        self.tree_scroll = ttk.Scrollbar(self.table_frame)
+        self.tree_scroll.pack(side="right", fill="y")
+
+        # Table data (headers included for new rows)
+        self.table_data = [["Select", "id_case", "BSS N°", "DEP N°", "Chargés d'affaire", "Saved Detections"]]
+
+        # Create CTkTable
+        self.table = CTkTable(self.table_frame, columns=self.table_data[0], show="headings", yscrollcommand=self.tree_scroll.set)
+        for col, heading in enumerate(self.table_data[0]):
+            self.table.heading(col, text=heading)
+            self.table.column(col, width=120 if heading != "Select" else 40)  # Adjust column widths
+        self.table.pack(expand=True, fill="both", padx=20, pady=10)
+        self.tree_scroll.config(command=self.table.yview)
+
+        # Create frame for buttons
+        self.manage_btn_frame = ctk.CTkFrame(self)
+        self.manage_btn_frame.pack(pady=10, padx=10)
+
+        # Create buttons
+        self.add_case_btn = ctk.CTkButton(self.manage_btn_frame, text="+", command=self.add_case, width=2, height=2, font=("Roboto", 20))
+        self.add_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=tk.LEFT)
+
+        self.rmv_case_btn = ctk.CTkButton(self.manage_btn_frame, text="-", command=self.remove_case, width=2, height=2, font=("Roboto", 20), state=tk.DISABLED)
+        self.rmv_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=tk.LEFT)
+
+        self.modify_case_btn = ctk.CTkButton(self.manage_btn_frame, text="modify", command=self.modify_case, state=tk.DISABLED)
+        self.modify_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=tk.LEFT)
+
+        # Additional variables for new row data
+        self.bss_number_var = tk.StringVar(self)
+        self.dep_number_var = tk.StringVar(self)
+        self.selected_row = None
+
+        def add_case(self):
+            # Get user list from database
+            case_collection, user_collection = connect_to_db()
+            user_list = get_user_list(user_collection)
+
+            # Update dropdown options
+            self.user_var.set("")  # Clear selection
+            self.user_dropdown["menu"].delete(0, tk.END)  # Clear existing options
+            for user in user_list:
+                self.user_dropdown["menu"].add_command(label=user, command=lambda user_name=user: self.user_var.set(user_name))
+
+            # Prompt for BSS and DEP numbers (replace with your preferred dialog)
+            bss_number = tk.simpledialog.askstring("BSS Number", "Enter BSS number (12 characters):")
+            dep_number = tk.simpledialog.askstring("DEP Number", "Enter DEP number (5 characters):")
+
+            if bss_number and len(bss_number) == 12 and dep_number and len(dep_number) == 5:
+                # Validate BSS and DEP numbers (add your validation logic here)
+                new_row = ["-", None, bss_number.strip(), dep_number.strip(), self.user_var.get(), ""]
+                self.table.insert("", tk.END, values=new_row)
+                
+        def remove_case(self):
+            if self.selected_row:
+                self.table.delete(self.selected_row)
+                self.selected_row = None  # Clear selection
+
+        def modify_case(self):
+            if self.selected_row:
+                # Get current values from the table
+                selected_values = self.table.item(self.selected_row)["values"]
+
+                # Prompt for modifications (replace with your preferred dialog)
+                # ... (similar to add_case logic)
+
+                # Update the table with modified values
+
+        def save_case(self):
+            case_collection, _ = connect_to_db()
+
+            # Get data from the selected row (assuming a single selection)
+            selected_row = self.table.selection()
+            if not selected_row:
+                print("No row selected. Please select a case to save.")
+                return
+
+            # Extract data from the selected row
+            selected_data = self.table.get_row(selected_row[0])
+
+            # Validate data (optional)
+            # You can add checks for empty fields or data format here
+
+            # Prepare data for database insertion
+            case_data = {
+                "BSS_number": selected_data[2],  # Assuming BSS number is at index 2
+                "DEP_number": selected_data[3],  # Assuming DEP number is at index 3
+                "assigned_user": selected_data[4],  # Assuming assigned user is at index 4
+                "saved_detections": [],  # Empty list for saved detections (replace if needed)
+            }
+
+            # Insert data into the database
+            case_collection.insert_one(case_data)
+
+            print(f"Case saved successfully! (BSS: {case_data['BSS_number']}, DEP: {case_data['DEP_number']})")
+
+
+            # Insert data into database
+            case_collection.insert_one(case_data)
+
+            # Update table with generated ID
+            self.table.set(row, column="id_case", value=case_id)
+            self.table.set(row, column="Select", value="")  # Clear checkbox
+
+        def select_row(self, event):
+            self.selected_row = self.table.identify_row(event.y)
+
+            
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
 
@@ -84,12 +215,6 @@ app = ctk.CTk()
 
 app.title("CTk - Tabviews")
 app.geometry("1200x800")
-
-value = [[1,2,3,4,5],
-         [1,2,3,4,5],
-         [1,2,3,4,5],
-         [1,2,3,4,5],
-         [1,2,3,4,5]]
 
 # **Create a main container frame**
 main_container = ctk.CTkFrame(app)
@@ -160,7 +285,7 @@ content_frame.pack(side="top", fill="both", expand=True, padx=5, pady=10)
 sidebar_frame = ctk.CTkFrame(content_frame, width=350, corner_radius=5)
 sidebar_frame.pack(side="left", fill="y", padx=5, pady=5)
 
-# **Create buttons in sidebar (replace with your functionality)**
+# **Create buttons in sidebar **
 start_button = ctk.CTkButton(sidebar_frame, text="Start", command=lambda: start_detection())
 start_button.pack(pady=10, padx=10, fill="x")
 
@@ -207,9 +332,52 @@ tableview.pack(pady=10, padx=10, fill="both")
 treeScroll = ttk.Scrollbar(tableview)
 treeScroll.pack(side="right", fill="y")
 
+value = [["Select","Case_ID","BSS N°","DEP N°","Chargés d'affaire","Saved Detections"]]
+
 table = CTkTable(master=tableview, row=5, column=5, values=value)
 table.pack(expand=True, fill="both", padx=20, pady=10)
 
+# **Create frame for btns to manage the data in the table
+manage_btn_frame = ctk.CTkFrame(case_manager)
+manage_btn_frame.pack(pady=10, padx=10)
+
+# **Create btns to manage the data in the table
+add_case_btn = ctk.CTkButton(manage_btn_frame,
+                            width=20,
+                            height=10,
+                            corner_radius=5,
+                            text="+",
+                            font=("Roboto",20)                          
+                            )
+add_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=LEFT)
+rmv_case_btn = ctk.CTkButton(manage_btn_frame,
+                            width=20,
+                            height=10,
+                            corner_radius=5,
+                            text="-",
+                            font=("Roboto",20),
+                            state="disable"                             
+                            )
+rmv_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=LEFT)
+modify_case_btn = ctk.CTkButton(manage_btn_frame,
+                            width=20,
+                            height=10,
+                            corner_radius=5,
+                            text="modify",
+                            state="disable"                             
+                            )
+modify_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=LEFT)
+save_case_btn = ctk.CTkButton(manage_btn_frame,
+                            width=20,
+                            height=10,
+                            corner_radius=5,
+                            text="save",
+                            state="disable"                             
+                            )
+save_case_btn.pack(expand=True, fill="both", padx=10, pady=10, side=LEFT)
+def add_case():
+    
+    return
 
 
 def start_detection():
