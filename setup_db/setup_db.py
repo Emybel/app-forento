@@ -37,15 +37,6 @@ def setup_database():
         }
     }
 
-    # Create users collection with validation
-    db.create_collection("users")
-    db.command("collMod", "users", validator=users_validator)
-    
-    # Create unique indexes for username and email
-    db.users.create_index("username", unique=True)
-    db.users.create_index("email", unique=True)
-    print("Unique indexes created.")
-
     # Detections collection schema and validation
     detections_validator = {
         "$jsonSchema": {
@@ -108,9 +99,57 @@ def setup_database():
         }
     }
 
+    # Roles collection schema and validation
+    roles_validator = {
+        "$jsonSchema": {
+            "bsonType": "object",
+            "required": ["roleName", "permissions"],
+            "properties": {
+                "roleName": {
+                    "bsonType": "string",
+                    "description": "must be a string and is required"
+                },
+                "permissions": {
+                    "bsonType": "array",
+                    "items": {
+                        "bsonType": "object",
+                        "required": ["resource", "actions"],
+                        "properties": {
+                            "resource": {
+                                "bsonType": "string",
+                                "description": "must be a string and is required"
+                            },
+                            "actions": {
+                                "bsonType": "array",
+                                "items": {
+                                    "bsonType": "string",
+                                    "description": "must be a string and is required"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    # Create users collection with validation
+    db.create_collection("users")
+    db.command("collMod", "users", validator=users_validator)
+    
+    # Create unique indexes for username and email
+    db.users.create_index("username", unique=True)
+    db.users.create_index("email", unique=True)
+    print("Unique indexes created.")
+    
     # Create detections collection with validation
     db.create_collection("fly_detections")
     db.command("collMod", "fly_detections", validator=detections_validator)
+    
+    # Create roles collection with validation
+    db.create_collection("roles")
+    db.command("collMod", "roles", validator=roles_validator)
+    
 
     print("Database setup completed.")
 
