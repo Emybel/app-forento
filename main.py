@@ -413,8 +413,8 @@ def detect_objects():
                                 {
                                     "time": time_str,  # Use the same variable containing the time string
                                     "confidence": rounded_confidence,
-                                    "image_id": image_hash,  # Store image hash
-                                    "image_path": f"{storage_path}/'detected-fly_{date_time_str}.png'",  # Store relative path
+                                    # "image_id": image_hash,  # Store image hash
+                                    "image_path": f"{archive_path}/'detections_{date_str}.zip'",  # Store relative path
                                     "position": {
                                         "tl_x": round(float(x_min), 3),
                                         "tl_y": round(float(y_min), 3),
