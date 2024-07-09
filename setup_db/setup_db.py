@@ -25,7 +25,7 @@ def setup_database():
         users_validator = {
             "$jsonSchema": {
                 "bsonType": "object",
-                "required": ["username", "password", "email", "role"],
+                "required": ["username", "password", "email", "role", "created_at", "last_login"],
                 "properties": {
                     "username": {
                         "bsonType": "string",
@@ -139,12 +139,28 @@ def setup_database():
         print("Fly detections collection already exists.")
 
     if "roles" not in collections:
-        # Create roles collection (for documentation purposes, not used by MongoDB natively)
-        db.roles.insert_many([
-            {"role": "Administrator", "description": "Full access to manage cases and users."},
-            {"role": "Expert", "description": "Access to cases and detections related to their assigned cases."},
-            {"role": "Technician", "description": "Read-only access to cases and detections they are assigned to."}
-        ])
+        # Create roles collection with actions
+        roles = [
+            {
+                "role": "Administrator",
+                "description": "Full access to manage cases and users.",
+                "actions": ["create_user", "delete_user", "update_user", "assign_case", "create_case", "delete_case", "update_case", "view_all_cases"]
+            },
+            {
+                "role": "Expert",
+                "description": "Access to cases and detections related to their assigned cases.",
+                "actions": ["view_assigned_cases", "create_case", "assign_technician", "search_cases", "filter_cases"]
+            },
+            {
+                "role": "Technician",
+                "description": "Read-only access to cases and detections they are assigned to.",
+                "actions": ["view_assigned_cases", "search_cases", "filter_cases"]
+            }
+        ]
+        
+        db.create_collection("roles")
+        db.roles.insert_many(roles)
+        
         print("Roles collection created.")
     else:
         print("Roles collection already exists.")
