@@ -1,12 +1,22 @@
 import tkinter as tk
+import re
 import customtkinter as ctk
 from PIL import Image
 from CTkMessagebox import CTkMessagebox
-from actions import create_user, hash_password, check_email
+from actions import create_user, hash_password, salt, check_email
 from setup_db.roles import get_forento_roles
+from setup_db.db import db
 
 roles = get_forento_roles()
 print(f"list of roles: {roles}")
+
+def destroy_login_window_and_show_main_window():
+    """Destroys the login window and shows the main window."""
+    app.destroy()
+    # Import the main app here to avoid circular imports
+    from mongodb import app # noqa
+    app.start_app()
+
 def create_new_user():
     """Creates a new user in the forento database."""
     username = username_entry.get()
@@ -14,7 +24,12 @@ def create_new_user():
     email = email_entry.get()
     selected_role = roles_menu.get()
 
-    if not username or not password or not email or not selected_role:
+    print(f"Username: {username}")
+    print(f"Password: {password}")
+    print(f"Email: {email}")
+    print(f"Selected Role: {selected_role}")
+    
+    if not username.strip() or not password.strip() or not email.strip() or not selected_role:
         CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
         return
     
@@ -23,10 +38,12 @@ def create_new_user():
         return
 
     try:
-        hashed_password = hash_password(password).decode()
+        hashed_password= hash_password(password)
         print(f"hashed password: {hashed_password}")
+        # print(f"hashed password: {salt}")
     except Exception as e:
-        CTkMessagebox(master=app, title="Missing Information", message="Please fill out all fields.")
+        CTkMessagebox(master=app, title="Error", message="An error occurred while hashing the password.")
+        print(f"Error hashing password: {e}")
         return
 
     # Create user in forento.users collection
@@ -39,6 +56,7 @@ def create_new_user():
         email_entry.delete(0, tk.END)
     except Exception as e:
         CTkMessagebox(master=app, title="Error Creating User", message=f"Error Creating User")
+        print(f"Error Creating User: {e}")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("dark")
@@ -58,10 +76,10 @@ if __name__ == "__main__":
     logo_label.pack(side="left", padx=40, pady=5)
     app_name_label.pack(side="left", pady=5)
 
-    login_frame = ctk.CTkFrame(app, corner_radius=5)
-    login_frame.pack(padx=10, pady=10, fill="both", expand=True)
+    register_frame = ctk.CTkFrame(app, corner_radius=5)
+    register_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
-    auth_frame = ctk.CTkFrame(login_frame, border_width=1, border_color="#101c12", corner_radius=14)
+    auth_frame = ctk.CTkFrame(register_frame, border_width=1, border_color="#101c12", corner_radius=14)
     auth_frame.pack(padx=20, pady=20, fill="both", expand=True)
 
     label = ctk.CTkLabel(master=auth_frame, text="Create new user", font=("Roboto", 24))

@@ -32,12 +32,22 @@ def setup_database():
                         "description": "must be a string and is required"
                     },
                     "password": {
-                        "bsonType": "string",
-                        "description": "must be a string and is required"
+                        "bsonType": "object",
+                        "required": ["hashed_pwd", "salt"],
+                        "properties": {
+                            "hashed_pwd":{
+                                "bsonType": "string",
+                                "description": "must be a string and is required",
+                                },
+                            "salt":{
+                                "bsonType": "string",
+                                "description": "must be a string and is required",
+                                }
+                        }
                     },
                     "email": {
                         "bsonType": "string",
-                        "pattern": "^.+@.+\..+$",
+                        "pattern": "^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}$",
                         "description": "must be a valid email address and is required"
                     },
                     "role": {

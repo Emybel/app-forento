@@ -33,8 +33,8 @@ from email.mime.multipart import MIMEMultipart
 # from collections import defaultdict
 # from customtkinter import CTkMessagebox
 
-client = MongoClient("localhost", 27017)
-db = client.forento
+client = MongoClient('mongodb://localhost:27017', username="Admin", password="ForentoAdmin1055", authSource="forento", authMechanism="SCRAM-SHA-256")
+db = client["forento"]
 collection = db['fly_detections']
 
 
@@ -91,7 +91,7 @@ def check_external_camera():
     
     if len(external_cameras) > 1:
         print(f"Found {len(external_cameras)} external cameras")
-        return external_cameras[1]
+        return external_cameras[0]
     else:
         print("No external camera found")
         return None
@@ -229,7 +229,7 @@ tab_frames[0].pack(fill="both", expand=True)
 
 # **Create a main container frame**
 main_container = customtkinter.CTkFrame(tab_frames[0])
-main_container.pack(fill="both", expand=True)  # Fills entire window
+main_container.pack(fill="both", pady=2, expand=True)  # Fills entire window
 
 # **Create a frame to group sidebar and image frame**
 content_frame = customtkinter.CTkFrame(main_container)

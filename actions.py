@@ -24,7 +24,9 @@ def create_user(username, hashed_password, email, role):
     
     user = {
         "username": username,
-        "password": hashed_password,
+        "password": {
+            "hashed_pwd": hashed_password
+            },
         "email": email,
         "role": role,
         "created_at": datetime.datetime.utcnow(),  # Set created_at to current UTC time
@@ -98,8 +100,9 @@ def filter_cases_for_technician(filters):
     cases = list(db.cases.find(filters))
     return cases
 
-def hash_password(password):
+salt = bcrypt.gensalt()
+def hash_password(password, salt=salt):
     """Generates a hashed password using bcrypt."""
-    salt = bcrypt.gensalt()
+    
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed_password
+    return hashed_password, salt
