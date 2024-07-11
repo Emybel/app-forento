@@ -1,4 +1,4 @@
-import bcrypt
+
 import datetime
 from pymongo import MongoClient
 from bson import ObjectId
@@ -100,9 +100,3 @@ def filter_cases_for_technician(filters):
     cases = list(db.cases.find(filters))
     return cases
 
-salt = bcrypt.gensalt()
-def hash_password(password, salt=salt):
-    """Generates a hashed password using bcrypt."""
-    
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed_password, salt

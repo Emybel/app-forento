@@ -3,7 +3,7 @@ import re
 import customtkinter as ctk
 from PIL import Image
 from CTkMessagebox import CTkMessagebox
-from actions import create_user, hash_password, salt, check_email
+from actions import create_user, hash_password,check_email
 from setup_db.roles import get_forento_roles
 from setup_db.db import db
 

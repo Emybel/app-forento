@@ -35,7 +35,10 @@ def login_user():
             pwd_entry.delete(0, tk.END)
             email_entry.delete(0, tk.END)
             login_window.destroy()
-            # CTkMessagebox(master=login_window, title="Success", message=f"User '{username}' logged in successfully!")
+            
+            # Show the main app gui
+            from mongodb import app
+            main_app = app()
         else:
             CTkMessagebox(title="Invalid Password", message="The provided password is incorrect.")
     else:
