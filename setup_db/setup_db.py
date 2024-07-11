@@ -175,6 +175,66 @@ def setup_database():
     else:
         print("Roles collection already exists.")
 
+    if "cases" not in collections:
+        # Create cases collection with validation
+        cases_validator = {
+        "$jsonSchema": {
+            "bsonType": "object",
+            "required": ["bss_num", "dep_num", "created_at", "status", "assigned_to", "technician_ids"],
+            "properties": {
+                "bss_num": {
+                    "bsonType": "string",
+                    "description": "must be a string and is required"
+                },
+                "dep_num": {
+                    "bsonType": "string",
+                    "description": "must be a string and is required"
+                },
+                "title": {
+                    "bsonType": "string",
+                    "description": "must be a string and is required"
+                },
+                "description": {
+                    "bsonType": "string",
+                    "description": "must be a string"
+                },
+                "created_at": {
+                    "bsonType": "date",
+                    "description": "must be a date and defaults to the current date"
+                },
+                "status": {
+                    "bsonType": "string",
+                    "enum": ["open", "closed", "in_progress"],
+                    "description": "must be a string and is required"
+                },
+                "assigned_to": {
+                    "bsonType": "objectId",
+                    "description": "must be an ObjectId and reference a user"
+                },
+                "technician_ids": {
+                    "bsonType": "array",
+                    "items": {
+                        "bsonType": "objectId",
+                        "description": "must be an ObjectId"
+                    },
+                    "description": "must be an array of ObjectIds and is required"
+                }
+            }
+        }
+    }
+
+        # Create cases collection with validation
+        db.create_collection("cases")
+        db.command("collMod", "cases", validator=cases_validator)
+        
+        # Create unique indexes for username and email
+        db.cases.create_index("bss_num", unique=True)
+        db.cases.create_index("dep_num", unique=True)
+        print("Cases collection and indexes created.")
+
+    else:
+        print("Cases collection already exists.")
+
     print("Database setup completed.")
     
 
