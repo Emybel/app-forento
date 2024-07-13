@@ -190,14 +190,6 @@ def setup_database():
                     "bsonType": "string",
                     "description": "must be a string and is required"
                 },
-                "title": {
-                    "bsonType": "string",
-                    "description": "must be a string and is required"
-                },
-                "description": {
-                    "bsonType": "string",
-                    "description": "must be a string"
-                },
                 "created_at": {
                     "bsonType": "date",
                     "description": "must be a date and defaults to the current date"
