@@ -23,9 +23,13 @@ def get_all_cases():
     return cases
 
 
-def get_usernames():
-    """Fetch all usernames from the database."""
-    return list(db.users.find({}, {"_id": 1, "username": 1}))
+def get_usernames(role=None):
+    """Fetch usernames from the database, optionally filtering by role."""
+    query = {}
+    if role:
+        query = {"role": role}
+    return list(db.users.find(query, {"_id": 1, "username": 1}))
+
 
 def create_case(bss_num, dep_num, status, assigned_to, technician_ids):
     """Create a new case in the database."""
@@ -85,7 +89,7 @@ if __name__ == "__main__":
     main_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
     # Treeview for Cases
-    columns = ("ID", "BSS Number", "Department Number", "Expert", "Technicians", "Status")
+    columns = ("BSS Number", "Department Number", "Expert", "Technicians", "Status")
     
     case_treeview = ttk.Treeview(main_frame, columns=columns, show="headings", height=5)
     for col in columns:
@@ -122,18 +126,25 @@ if __name__ == "__main__":
     list_frame.pack(pady=10, fill="x")
 
     ctk.CTkLabel(list_frame, text="Expert Assigned To").pack(side="left", padx=5)
-    assigned_to_entry = ctk.CTkEntry(list_frame, placeholder_text="Search and select")
-    assigned_to_entry.pack(side="left", padx=5, fill="x", expand=True)
+    # assigned_to_entry = ctk.CTkEntry(list_frame, placeholder_text="Search and select")
+    # assigned_to_entry.pack(side="left", padx=5, fill="x", expand=True)
 
     assigned_to_dropdown = ttk.Combobox(list_frame)
     assigned_to_dropdown.pack(side="left", padx=5, fill="x", expand=True)
 
+    # Populate dropdowns
+    assigned_to_dropdown['values'] = [entry["username"] for entry in get_usernames("Expert")]
+
     ctk.CTkLabel(list_frame, text="Technician IDs").pack(side="left", padx=5)
-    technician_ids_entry = ctk.CTkEntry(list_frame, placeholder_text="Search and select")
-    technician_ids_entry.pack(side="left", padx=5, fill="x", expand=True)
+    # technician_ids_entry = ctk.CTkEntry(list_frame, placeholder_text="Search and select")
+    # technician_ids_entry.pack(side="left", padx=5, fill="x", expand=True)
 
     technician_ids_listbox = tk.Listbox(list_frame, selectmode=tk.MULTIPLE, width=20)
     technician_ids_listbox.pack(pady=5, padx=5, fill="both", expand=True)
+
+    # Populate listbox
+    technician_ids_listbox.insert(tk.END, *[entry["username"] for entry in get_usernames("Technician")])
+
 
     # Variables to store selected user IDs
     assigned_to_id = None
@@ -148,7 +159,7 @@ if __name__ == "__main__":
         cases = get_all_cases()
         for case in cases:
             technicians = ", ".join(case["technician_usernames"])
-            case_treeview.insert("", "end", values=(case["_id"], case["bss_num"], case["dep_num"], 
+            case_treeview.insert("", "end", values=(case["bss_num"], case["dep_num"], 
                                                     case["expert_username"], technicians, case["status"]))
 
 
@@ -158,7 +169,7 @@ if __name__ == "__main__":
         dep_num = dep_num_entry.get()
         status = status_menu.get()
         assigned_to = assigned_to_dropdown.get()
-        technician_ids = technician_ids_entry.get().split(",")
+        # technician_ids = technician_ids_entry.get().split(",")
 
         if not bss_num.strip() or not dep_num.strip() or not status or not assigned_to.strip():
             CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
@@ -169,8 +180,8 @@ if __name__ == "__main__":
             CTkMessagebox(master=app, title="Success", message=f"Case '{bss_num}' created successfully!")
             bss_num_entry.delete(0, tk.END)
             dep_num_entry.delete(0, tk.END)
-            assigned_to_entry.delete(0, tk.END)
-            technician_ids_entry.delete(0, tk.END)
+            # assigned_to_entry.delete(0, tk.END)
+            # technician_ids_entry.delete(0, tk.END)
             refresh_case_list()
         except Exception as e:
             CTkMessagebox(master=app, title="Error Creating Case", message=f"Error Creating Case: {e}")
@@ -188,7 +199,7 @@ if __name__ == "__main__":
         dep_num = dep_num_entry.get()
         status = status_menu.get()
         assigned_to = assigned_to_dropdown.get()
-        technician_ids = technician_ids_entry.get().split(",")
+        # technician_ids = technician_ids_entry.get().split(",")
 
         if not bss_num.strip() or not dep_num.strip() or not status or not assigned_to.strip():
             CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
@@ -230,25 +241,21 @@ if __name__ == "__main__":
     modify_btn.pack(side="left", padx=10)
     delete_btn.pack(side="left", padx=10)
 
-    def on_assigned_to_entry_change(event):
-        search_text = assigned_to_entry.get()
-        matching_users = search_users(search_text)
-        update_dropdown(assigned_to_dropdown, matching_users)
-
-    def on_technician_ids_entry_change(event):
-        search_text = technician_ids_entry.get()
-        matching_users = search_users(search_text)
-        update_listbox(technician_ids_listbox, matching_users)
-
     def on_assigned_to_select(event):
         global assigned_to_id
         selected_user = assigned_to_dropdown.get()
         user = db.users.find_one({"username": selected_user}, {"_id": 1})
         assigned_to_id = user["_id"] if user else None
-    
-    assigned_to_entry.bind("<KeyRelease>", on_assigned_to_entry_change)
-    technician_ids_entry.bind("<KeyRelease>", on_technician_ids_entry_change)
+
+    def on_technician_select(event):
+        global technician_ids_list
+        selected_indices = technician_ids_listbox.curselection()
+        selected_techs = [technician_ids_listbox.get(i) for i in selected_indices]
+        technician_ids_list = [db.users.find_one({"username": tech.strip()}, {"_id": 1})["_id"] for tech in selected_techs if db.users.find_one({"username": tech.strip()}, {"_id": 1})]
+
     assigned_to_dropdown.bind("<<ComboboxSelected>>", on_assigned_to_select)
+    technician_ids_listbox.bind("<<ListboxSelect>>", on_technician_select)
+
 
     def on_technician_select(event):
         global technician_ids_list

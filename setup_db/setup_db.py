@@ -221,7 +221,6 @@ def setup_database():
         
         # Create unique indexes for username and email
         db.cases.create_index("bss_num", unique=True)
-        db.cases.create_index("dep_num", unique=True)
         print("Cases collection and indexes created.")
 
     else:
