@@ -60,6 +60,26 @@ def update_user(email, username=None, new_email=None, role=None, password=None):
 ---------- HELPER FUNCTIONS FOR CASE MANAGEMENT ----------
 
 """
+def get_all_cases():
+    """Fetch all cases from the database and include usernames for assigned Expert and Technicians."""
+    cases = list(db.cases.find())
+    for case in cases:
+        # Fetch the expert's username
+        expert = db.users.find_one({"_id": case["assigned_to"]})
+        case["expert_username"] = expert["username"] if expert else "Unknown"
+        
+        # Fetch technician usernames
+        technicians = db.users.find({"_id": {"$in": case["technician_ids"]}})
+        case["technician_usernames"] = [tech["username"] for tech in technicians]
+        
+    return cases
+
+def get_usernames(role=None):
+    """Fetch usernames from the database, optionally filtering by role."""
+    query = {}
+    if role:
+        query = {"role": role}
+    return list(db.users.find(query, {"_id": 1, "username": 1}))
 
 def create_case(bss_num, dep_num, status, assigned_to, technician_ids):
     """Create a new case in the database."""
@@ -73,20 +93,20 @@ def create_case(bss_num, dep_num, status, assigned_to, technician_ids):
     }
     return db.cases.insert_one(case).inserted_id
 
-def update_case(case_id, bss_num, dep_num, status, assigned_to, technician_ids):
+def update_case(bss_num, update_fields):
     """Update an existing case in the database."""
-    update_fields = {
-        "bss_num": bss_num,
-        "dep_num": dep_num,
-        "status": status,
-        "assigned_to": ObjectId(assigned_to),
-        "technician_ids": [ObjectId(tech_id) for tech_id in technician_ids]
-    }
-    db.cases.update_one({"_id": ObjectId(case_id)}, {"$set": update_fields})
-    
-def delete_case(case_id):
+    try:
+        result = db.cases.update_one({"bss_num": bss_num}, {"$set": update_fields})
+        if result.matched_count == 0:
+            raise ValueError("No case found with the provided BSS number.")
+        if result.modified_count == 0:
+            print("No fields were modified.")
+    except Exception as e:
+        print(f"Error updating case in database: {e}")
+        raise
+def delete_case(case_bss_num):
     """Delete a case from the database."""
-    db.cases.delete_one({"_id": ObjectId(case_id)})
+    db.cases.delete_one({"bss_num":case_bss_num })
 
 def search_users(search_text):
     """Search for users whose username matches the search text."""

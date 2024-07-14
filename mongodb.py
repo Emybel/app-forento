@@ -96,6 +96,7 @@ def check_external_camera():
         return external_cameras[0]
     else:
         print("No external camera found")
+        CTkMessagebox(title="No camera found", message="No external camera detected. Please ensure your camera is properly connected to your laptop.")
         return None
 
 # Helper function to check if a camera is a built-in webcam
@@ -303,184 +304,6 @@ pause_button.pack(pady=10, padx=10)
 
 play_button = ctk.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
 play_button.pack(pady=10, padx=10)
-
-# # Create a new button in the sidebar
-# send_email_button = customtkinter.CTkButton(sidebar_frame, text="Send Email", command=lambda: send_email_report(latest_zip_path), state="disabled")
-# send_email_button.pack(pady=10, padx=10, fill="x")
-
-"""
-------------------------- CASE MANAGEMENT TAB FUNCTIONS ---------------------------
-"""
-def update_listbox(listbox, entries):
-        """Update the listbox with new entries."""
-        listbox.delete(0, tk.END)
-        for entry in entries:
-            listbox.insert(tk.END, entry["username"])
-        
-# Refresh case list function
-def refresh_case_list():
-    """Fetch cases from the database and display them in the treeview."""
-    for row in case_treeview.get_children():
-        case_treeview.delete(row)
-
-    cases = get_all_cases()
-    for case in cases:
-        technicians = ", ".join(case["technician_usernames"])
-        case_treeview.insert("", "end", values=(case["bss_num"], case["dep_num"], 
-                                                case["expert_username"], technicians, case["status"]))
-
-def create_new_case():
-    """Creates a new case in the database."""
-    bss_num = bss_num_entry.get()
-    dep_num = dep_num_entry.get()
-    status = status_menu.get()
-    assigned_to = assigned_to_dropdown.get()
-
-    if not bss_num.strip() or not dep_num.strip() or not status or not assigned_to.strip():
-        CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
-        return
-
-    try:
-        create_case(bss_num, dep_num, status, assigned_to_id, technician_ids_list)
-        CTkMessagebox(master=app, title="Success", message=f"Case '{bss_num}' created successfully!")
-        bss_num_entry.delete(0, tk.END)
-        dep_num_entry.delete(0, tk.END)
-        refresh_case_list()
-    except Exception as e:
-        CTkMessagebox(master=app, title="Error Creating Case", message=f"Error Creating Case: {e}")
-        print(f"Error Creating Case: {e}")
-
-def modify_selected_case():
-    """Modifies the selected case's information in the database."""
-    selected_item = case_treeview.selection()
-    if not selected_item:
-        CTkMessagebox(master=app, title="Error", message="Please select a case to modify.")
-        return
-
-    case_id = case_treeview.item(selected_item, "values")[0]
-    bss_num = bss_num_entry.get()
-    dep_num = dep_num_entry.get()
-    status = status_menu.get()
-    assigned_to = assigned_to_dropdown.get()
-
-    if not bss_num.strip() and not dep_num.strip() and not status and not assigned_to.strip():
-        CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
-        return
-
-    try:
-        update_case(case_id, bss_num, dep_num, status, assigned_to_id, technician_ids_list)
-        CTkMessagebox(master=app, title="Success", message="Case updated successfully!")
-        refresh_case_list()
-    except Exception as e:
-        CTkMessagebox(master=app, title="Error", message=f"Error Updating Case: {e}")
-        print(f"Error Updating Case: {e}")
-
-def delete_selected_case():
-    """Deletes the selected case from the database."""
-    selected_item = case_treeview.selection()
-    if not selected_item:
-        CTkMessagebox(master=app, title="Error", message="Please select a case to delete.")
-        return
-
-    case_bss_num = case_treeview.item(selected_item, "values")[0]
-    try:
-        delete_case(case_bss_num)
-        CTkMessagebox(master=app, title="Success", message="Case deleted successfully!")
-        refresh_case_list()
-    except Exception as e:
-        CTkMessagebox(master=app, title="Error", message=f"Error Deleting Case: {e}")
-        print(f"Error Deleting Case: {e}")
-        
-"""
----------------------- CASE MANAGEMENT TAB ----------------------
-
-"""
-cases = get_all_cases()
-users = get_all_users()
-
-# Create a frame for the main content of the Case Management tab
-main_frame = ctk.CTkFrame(tab_frames[2])
-main_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-# Add a frame for the treeview
-treeview_frame = ctk.CTkFrame(main_frame, corner_radius=5)
-treeview_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-# Treeview for Cases
-columns = ("BSS Number", "Department Number", "Expert", "Technicians", "Status")
-
-case_treeview = ttk.Treeview(treeview_frame, columns=columns, show="headings", height=5)
-for col in columns:
-    case_treeview.heading(col, text=col)
-    case_treeview.column(col, minwidth=100, width=150, stretch=tk.NO)
-
-case_treeview.pack(padx=10, pady=10, fill="both", expand=True)
-scrollbar = ttk.Scrollbar(case_treeview, orient="vertical", command=case_treeview.yview)
-case_treeview.configure(yscroll=scrollbar.set)
-scrollbar.pack(side="right", fill="y")
-
-# Sub-frame for the Form
-form_frame = ctk.CTkFrame(main_frame)
-form_frame.pack(pady=10, fill="x")
-
-ctk.CTkLabel(form_frame, text="Manage cases", font=("Roboto", 24)).pack(side="top", padx=5, pady=10)
-
-# Input Fields with Labels
-input_frame = ctk.CTkFrame(form_frame, fg_color="transparent", width=200)
-input_frame.pack(pady=10)
-
-ctk.CTkLabel(input_frame, text="BSS Number:").pack(side="left", padx=5)
-bss_num_entry = ctk.CTkEntry(input_frame, placeholder_text="BSS Number")
-bss_num_entry.pack(side="left", padx=15)
-
-ctk.CTkLabel(input_frame, text="Department Number:").pack(side="left", padx=5)
-dep_num_entry = ctk.CTkEntry(input_frame, placeholder_text="Department Number")
-dep_num_entry.pack(side="left", padx=15)
-
-ctk.CTkLabel(input_frame, text="Status:").pack(side="left")
-status_menu = ctk.CTkComboBox(input_frame, values=["open", "closed", "in_progress"])
-status_menu.pack(side="left", padx=15)
-
-# Assigned To and Technician IDs
-list_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-list_frame.pack(padx=50, pady=10, fill="x")
-
-sub_frame1 = ctk.CTkFrame(list_frame, fg_color="transparent", width=200)
-sub_frame2 = ctk.CTkFrame(list_frame, fg_color="transparent", width=100)
-sub_frame1.pack(side="left", padx=50, pady=5)
-sub_frame2.pack(side="left", padx=10, pady=5)
-
-ctk.CTkLabel(sub_frame1, text="Expert Assigned To:").pack(side="left", padx=5)
-
-assigned_to_dropdown = ttk.Combobox(sub_frame1)
-assigned_to_dropdown.pack(side=["left"], padx=10, fill="x")
-
-# Populate dropdowns
-assigned_to_dropdown['values'] = [entry["username"] for entry in get_usernames("Expert")]
-
-ctk.CTkLabel(sub_frame2, text="Technician IDs:").pack(side="left", padx=5)
-
-technician_ids_listbox = tk.Listbox(sub_frame2, selectmode=tk.MULTIPLE, width=80)
-technician_ids_listbox.pack(side=["left"], pady=5, padx=5, fill="y")
-
-# Populate listbox
-technician_ids_listbox.insert(tk.END, *[entry["username"] for entry in get_usernames("Technician")])
-
-# Buttons Frame
-button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-button_frame.pack(pady=10)
-
-create_btn = ctk.CTkButton(button_frame, text="Create Case", corner_radius=7, command=create_new_case)
-modify_btn = ctk.CTkButton(button_frame, text="Modify Case", corner_radius=7, command=modify_selected_case)
-delete_btn = ctk.CTkButton(button_frame, text="Delete Case", corner_radius=7, command=delete_selected_case)
-
-create_btn.pack(side="left", padx=10)
-modify_btn.pack(side="left", padx=10)
-delete_btn.pack(side="left", padx=10)
-
-# **Add copyright text with white color and centered alignment**
-copyright_text = ctk.CTkLabel(footer_frame, text="© 2024 YOTTA", text_color="gray", anchor="center",)
-copyright_text.pack(padx=10, pady=10, fill="x")
 
 """
 --------------------- DETECTION TAB FUNCTIONS ---------------------
@@ -802,6 +625,222 @@ def run_scheduled_tasks():
 
 # Schedule the archive_and_clear function to run at 23:59 (11:59 PM) every day
 schedule.every().day.at("10:22").do(archive_and_clear)
+
+"""
+------------------------- CASE MANAGEMENT TAB FUNCTIONS ---------------------------
+"""
+
+def update_listbox(listbox, entries):
+        """Update the listbox with new entries."""
+        listbox.delete(0, tk.END)
+        for entry in entries:
+            listbox.insert(tk.END, entry["username"])
+        
+# Refresh case list function
+def refresh_case_list():
+    """Fetch cases from the database and display them in the treeview."""
+    for row in case_treeview.get_children():
+        case_treeview.delete(row)
+
+    cases = get_all_cases()
+    for case in cases:
+        technicians = ", ".join(case["technician_usernames"])
+        case_treeview.insert("", "end", values=(case["bss_num"], case["dep_num"], 
+                                                case["expert_username"], technicians, case["status"]))
+
+def create_new_case():
+    """Creates a new case in the database."""
+    bss_num = bss_num_entry.get()
+    dep_num = dep_num_entry.get()
+    status = status_menu.get()
+    assigned_to = assigned_to_dropdown.get()
+
+    if not bss_num.strip() or not dep_num.strip() or not status or not assigned_to.strip():
+        CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
+        return
+
+    try:
+        create_case(bss_num, dep_num, status, assigned_to_id, technician_ids_list)
+        CTkMessagebox(master=app, title="Success", message=f"Case '{bss_num}' created successfully!")
+        bss_num_entry.delete(0, tk.END)
+        dep_num_entry.delete(0, tk.END)
+        refresh_case_list()
+    except Exception as e:
+        CTkMessagebox(master=app, title="Error Creating Case", message=f"Error Creating Case: {e}")
+        print(f"Error Creating Case: {e}")
+
+# Variables to store selected user IDs
+assigned_to_id = None
+technician_ids_list = []
+def modify_selected_case():
+    """Modifies the selected case's information in the database."""
+    selected_item = case_treeview.selection()
+    if not selected_item:
+        CTkMessagebox(master=app, title="Error", message="Please select a case to modify.")
+        return
+
+    # Get the bss_num of the selected case
+    selected_case = case_treeview.item(selected_item, "values")
+    bss_num = selected_case[0]  # Assuming BSS Number is the first column
+
+    # Retrieve and strip the values from the entries and dropdowns
+    new_bss_num = bss_num_entry.get().strip()
+    dep_num = dep_num_entry.get().strip()
+    status = status_menu.get()
+    assigned_to_username = assigned_to_dropdown.get().strip()
+
+    # Check if at least one field is filled
+    if not new_bss_num and not dep_num and not status and not assigned_to_id:
+        CTkMessagebox(master=app, title="Missing Information", message="Please fill out at least one field.")
+        return
+
+    # Build the update_fields dictionary based on provided inputs
+    update_fields = {}
+    if new_bss_num:
+        update_fields["bss_num"] = new_bss_num
+    if dep_num:
+        update_fields["dep_num"] = dep_num
+    if status:
+        update_fields["status"] = status
+    if assigned_to_username:
+        try:
+            # Fetch the ObjectId for the assigned_to username
+            assigned_to_id = get_user_id_by_username(assigned_to_username)
+            if assigned_to_id:
+                update_fields["assigned_to"] = ObjectId(assigned_to_id)
+            else:
+                CTkMessagebox(master=app, title="Error", message="Invalid assigned to username.")
+                return
+        except Exception as e:
+            CTkMessagebox(master=app, title="Error", message=f"Error fetching user ID: {e}")
+            print(f"Error fetching user ID: {e}")
+            return
+
+    # Include technician_ids if they are provided
+    if technician_ids_list:
+        update_fields["technician_ids"] = [ObjectId(tech_id) for tech_id in technician_ids_list]
+
+    try:
+        update_case(bss_num, update_fields)
+        CTkMessagebox(master=app, title="Success", message="Case updated successfully!")
+        refresh_case_list()
+    except Exception as e:
+        CTkMessagebox(master=app, title="Error", message=f"Error Updating Case: {e}")
+        print(f"Error Updating Case: {e}")
+
+def get_user_id_by_username(username):
+    """Fetches the user ID (ObjectId) for a given username."""
+    user = db.users.find_one({"username": username})
+    return str(user["_id"]) if user else None
+
+def delete_selected_case():
+    """Deletes the selected case from the database."""
+    selected_item = case_treeview.selection()
+    if not selected_item:
+        CTkMessagebox(master=app, title="Error", message="Please select a case to delete.")
+        return
+
+    case_bss_num = case_treeview.item(selected_item, "values")[0]
+    try:
+        delete_case(case_bss_num)
+        CTkMessagebox(master=app, title="Success", message="Case deleted successfully!")
+        refresh_case_list()
+    except Exception as e:
+        CTkMessagebox(master=app, title="Error", message=f"Error Deleting Case: {e}")
+        print(f"Error Deleting Case: {e}")
+
+"""
+---------------------- CASE MANAGEMENT TAB ----------------------
+
+"""
+cases = get_all_cases()
+users = get_all_users()
+
+# Create a frame for the main content of the Case Management tab
+main_frame = ctk.CTkFrame(tab_frames[2])
+main_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+# Add a frame for the treeview
+treeview_frame = ctk.CTkFrame(main_frame, corner_radius=5)
+treeview_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+# Treeview for Cases
+columns = ("BSS Number", "Department Number", "Expert", "Technicians", "Status")
+
+case_treeview = ttk.Treeview(treeview_frame, columns=columns, show="headings", height=5)
+for col in columns:
+    case_treeview.heading(col, text=col)
+    case_treeview.column(col, minwidth=100, width=150, stretch=tk.NO)
+
+case_treeview.pack(padx=10, pady=10, fill="both", expand=True)
+scrollbar = ttk.Scrollbar(case_treeview, orient="vertical", command=case_treeview.yview)
+case_treeview.configure(yscroll=scrollbar.set)
+scrollbar.pack(side="right", fill="y")
+
+# Sub-frame for the Form
+form_frame = ctk.CTkFrame(main_frame)
+form_frame.pack(pady=10, fill="x")
+
+ctk.CTkLabel(form_frame, text="Manage cases", font=("Roboto", 24)).pack(side="top", padx=5, pady=10)
+
+# Input Fields with Labels
+input_frame = ctk.CTkFrame(form_frame, fg_color="transparent", width=200)
+input_frame.pack(pady=10)
+
+ctk.CTkLabel(input_frame, text="BSS Number:").pack(side="left", padx=5)
+bss_num_entry = ctk.CTkEntry(input_frame, placeholder_text="BSS Number")
+bss_num_entry.pack(side="left", padx=15)
+
+ctk.CTkLabel(input_frame, text="Department Number:").pack(side="left", padx=5)
+dep_num_entry = ctk.CTkEntry(input_frame, placeholder_text="Department Number")
+dep_num_entry.pack(side="left", padx=15)
+
+ctk.CTkLabel(input_frame, text="Status:").pack(side="left")
+status_menu = ctk.CTkComboBox(input_frame, values=["open", "closed", "in_progress"])
+status_menu.pack(side="left", padx=15)
+
+# Assigned To and Technician IDs
+list_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+list_frame.pack(padx=50, pady=10, fill="x")
+
+sub_frame1 = ctk.CTkFrame(list_frame, fg_color="transparent", width=200)
+sub_frame2 = ctk.CTkFrame(list_frame, fg_color="transparent", width=100)
+sub_frame1.pack(side="left", padx=50, pady=5)
+sub_frame2.pack(side="left", padx=10, pady=5)
+
+ctk.CTkLabel(sub_frame1, text="Expert Assigned To:").pack(side="left", padx=5)
+
+assigned_to_dropdown = ttk.Combobox(sub_frame1)
+assigned_to_dropdown.pack(side=["left"], padx=10, fill="x")
+
+# Populate dropdowns
+assigned_to_dropdown['values'] = [entry["username"] for entry in get_usernames("Expert")]
+
+ctk.CTkLabel(sub_frame2, text="Technician IDs:").pack(side="left", padx=5)
+
+technician_ids_listbox = tk.Listbox(sub_frame2, selectmode=tk.MULTIPLE, width=80)
+technician_ids_listbox.pack(side=["left"], pady=5, padx=5, fill="y")
+
+# Populate listbox
+technician_ids_listbox.insert(tk.END, *[entry["username"] for entry in get_usernames("Technician")])
+
+# Buttons Frame
+button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+button_frame.pack(pady=10)
+
+create_btn = ctk.CTkButton(button_frame, text="Create Case", corner_radius=7, command=create_new_case)
+modify_btn = ctk.CTkButton(button_frame, text="Modify Case", corner_radius=7, command=modify_selected_case)
+delete_btn = ctk.CTkButton(button_frame, text="Delete Case", corner_radius=7, command=delete_selected_case)
+
+create_btn.pack(side="left", padx=10)
+modify_btn.pack(side="left", padx=10)
+delete_btn.pack(side="left", padx=10)
+
+# **Add copyright text with white color and centered alignment**
+copyright_text = ctk.CTkLabel(footer_frame, text="© 2024 YOTTA", text_color="gray", anchor="center",)
+copyright_text.pack(padx=10, pady=10, fill="x")
+
+
 
 # Bind the on_closing function to the window's closing event
 app.protocol("WM_DELETE_WINDOW", ask_question)
