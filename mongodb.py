@@ -17,7 +17,9 @@ import cv2 as cv
 import collections
 import numpy as np
 import ultralytics
-import customtkinter
+import tkinter as tk
+import customtkinter as ctk
+from helper import *
 from PIL import Image
 from tkinter import ttk
 from email import encoders
@@ -157,11 +159,11 @@ def update_tab_styles(selected_index):
             button.configure(fg_color="transparent", font=("Arial", 12), corner_radius=0, border_width=0)  # Inactive tab style
 
 # Set appearance mode
-customtkinter.set_appearance_mode("System")
-customtkinter.set_default_color_theme("green")
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("green")
 
 # Create main app window
-app = customtkinter.CTk()
+app = ctk.CTk()
 # app.iconbitmap("asset/logo.png") # **Set a bitmap icon for the app**
 
 # Set height and width of the app
@@ -182,43 +184,58 @@ app.resizable(height=False, width=False)
 app.title("Forento Fly Detector")
 
 # **Create frame for header**
-header_frame = customtkinter.CTkFrame(app, corner_radius=5)
+header_frame = ctk.CTkFrame(app, corner_radius=5)
 header_frame.pack( side="top",fill="x", padx=10, pady=5)
 
 # **Load logo image**
-logo_image = customtkinter.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
+logo_image = ctk.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
 
 # **Create label for app name with larger font**
-app_name_label = customtkinter.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
+app_name_label = ctk.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
 
 # **Pack logo and app name label in header**
-logo_label = customtkinter.CTkLabel(header_frame, image=logo_image, text=" ", anchor='center')
+logo_label = ctk.CTkLabel(header_frame, image=logo_image, text=" ", anchor='center')
 logo_label.pack(side="left", padx=40, pady=5)
 app_name_label.pack(side="left", pady=5)
 
 # Create a container for the custom tab bar
-tab_bar_frame = customtkinter.CTkFrame(app)
+tab_bar_frame = ctk.CTkFrame(app)
 tab_bar_frame.pack(side="top", fill="x")
 
 # Center the tab bar frame
-tab_bar_inner_frame = customtkinter.CTkFrame(tab_bar_frame)
+tab_bar_inner_frame = ctk.CTkFrame(tab_bar_frame)
 tab_bar_inner_frame.pack(side="top")
 
 # Define tab names
 tab_names = ["Detection", "User Management", "Case Management"]
 
 # Create a frame for each tab content
-tab_frames = [customtkinter.CTkFrame(app) for _ in tab_names]
+tab_frames = [ctk.CTkFrame(app) for _ in tab_names]
 
 # Create buttons for each tab and center them
 tab_buttons = []
 for idx, name in enumerate(tab_names):
-    tab_button = customtkinter.CTkButton(
+    tab_button = ctk.CTkButton(
         tab_bar_inner_frame, text=name, command=lambda i=idx: switch_tab(i),
         fg_color="gray30", corner_radius=0, border_width=0  # Initial style
     )
     tab_button.pack(side="left", padx=5, pady=5)
     tab_buttons.append(tab_button)
+
+# Function to switch between tabs
+def switch_tab(tab_index):
+    for frame in tab_frames:
+        frame.pack_forget()
+    tab_frames[tab_index].pack(fill="both", expand=True)
+    update_tab_styles(tab_index)
+
+# Function to update tab button styles
+def update_tab_styles(active_tab_index):
+    for idx, button in enumerate(tab_buttons):
+        if idx == active_tab_index:
+            button.configure(fg_color="green")
+        else:
+            button.configure(fg_color="transparent")
 
 # Display the first tab by default and update styles
 tab_frames[0].pack(fill="both", expand=True)
@@ -228,74 +245,247 @@ update_tab_styles(0)
 tab_frames[0].pack(fill="both", expand=True)
 
 # **Create a main container frame**
-main_container = customtkinter.CTkFrame(tab_frames[0])
+main_container = ctk.CTkFrame(tab_frames[0])
 main_container.pack(fill="both", pady=2, expand=True)  # Fills entire window
 
 # **Create a frame to group sidebar and image frame**
-content_frame = customtkinter.CTkFrame(main_container)
+content_frame = ctk.CTkFrame(main_container)
 content_frame.pack(side="top", fill="both", expand=True, padx=5, pady=10)
 
 # **Create frame for sidebar**
-sidebar_frame = customtkinter.CTkFrame(content_frame, width=350, corner_radius=5)
+sidebar_frame = ctk.CTkFrame(content_frame, width=350, corner_radius=5)
 sidebar_frame.pack(side="left", fill="y", padx=5, pady=5)
 
 # **Create frame for image display**
-image_frame = customtkinter.CTkFrame(content_frame)
+image_frame = ctk.CTkFrame(content_frame)
 image_frame.pack(side="left", fill="both", expand=True, padx=5, pady=10)
 
 # **Create frame for footer**
-footer_frame = customtkinter.CTkFrame(main_container)
+footer_frame = ctk.CTkFrame(main_container)
 footer_frame.pack(side="bottom", fill="x", padx=5, pady=5, anchor="center")
 
 # **Create buttons in sidebar (replace with your functionality)**
-start_button = customtkinter.CTkButton(sidebar_frame, text="Start", command=lambda: start_detection())
+start_button = ctk.CTkButton(sidebar_frame, text="Start", command=lambda: start_detection())
 start_button.pack(pady=10, padx=10, fill="x")
 
-stop_button = customtkinter.CTkButton(sidebar_frame, text="Stop", command=lambda: stop_detection(), state="disabled")
+stop_button = ctk.CTkButton(sidebar_frame, text="Stop", command=lambda: stop_detection(), state="disabled")
 stop_button.pack(pady=10, padx=10, fill="x")
 
-open_folder_button = customtkinter.CTkButton(sidebar_frame, text="Open Folder", command=lambda: open_save_folder(), state="disabled")
+open_folder_button = ctk.CTkButton(sidebar_frame, text="Open Folder", command=lambda: open_save_folder(), state="disabled")
 open_folder_button.pack(pady=10, padx=10, fill="x")
 
-exit_button = customtkinter.CTkButton(sidebar_frame, text="Exit", command=ask_question, state="normal")
+exit_button = ctk.CTkButton(sidebar_frame, text="Exit", command=ask_question, state="normal")
 exit_button.pack(pady=10, padx=10, fill="x")
 
 # Create label to display image (initially empty)
-image_label = customtkinter.CTkLabel(image_frame, text="")
+image_label = ctk.CTkLabel(image_frame, text="")
 image_label.pack(fill="both", expand=True)
 
 # **Create a label for confidence threshold spinbox**
-confidence_label = customtkinter.CTkLabel(sidebar_frame, text="Confidence Threshold:")
+confidence_label = ctk.CTkLabel(sidebar_frame, text="Confidence Threshold:")
 confidence_label.pack(pady=10)
 
 # **Create a spinbox for confidence threshold with initial value and increments**
-confidence_var = customtkinter.IntVar(value=85)  # Initial value as 85 (represents 0.85)
-confidence_entry = customtkinter.CTkEntry(
+confidence_var = ctk.IntVar(value=85)  # Initial value as 85 (represents 0.85)
+confidence_entry = ctk.CTkEntry(
     sidebar_frame,
     width=150,
     textvariable=confidence_var
 )
 confidence_entry.pack(pady=10, padx=10)
 # **Load play and pause icon images**
-play_icon = customtkinter.CTkImage(Image.open("asset/play.png"), size=(20, 20))
-pause_icon = customtkinter.CTkImage(Image.open("asset/pause.png"), size=(20, 20))
+play_icon = ctk.CTkImage(Image.open("asset/play.png"), size=(20, 20))
+pause_icon = ctk.CTkImage(Image.open("asset/pause.png"), size=(20, 20))
 
 # **Create buttons for pause/play confidence threshold functionality (replace with your logic)**
-pause_button = customtkinter.CTkButton(sidebar_frame, image= pause_icon, text=' ', corner_radius=100, command=lambda: pause_detection(), state="disabled")
+pause_button = ctk.CTkButton(sidebar_frame, image= pause_icon, text=' ', corner_radius=100, command=lambda: pause_detection(), state="disabled")
 pause_button.pack(pady=10, padx=10)
 
-play_button = customtkinter.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
+play_button = ctk.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
 play_button.pack(pady=10, padx=10)
 
-# Create a new button in the sidebar
-send_email_button = customtkinter.CTkButton(sidebar_frame, text="Send Email", command=lambda: send_email_report(latest_zip_path), state="disabled")
-send_email_button.pack(pady=10, padx=10, fill="x")
+# # Create a new button in the sidebar
+# send_email_button = customtkinter.CTkButton(sidebar_frame, text="Send Email", command=lambda: send_email_report(latest_zip_path), state="disabled")
+# send_email_button.pack(pady=10, padx=10, fill="x")
 
+"""
+------------------------- CASE MANAGEMENT TAB FUNCTIONS ---------------------------
+"""
+def update_listbox(listbox, entries):
+        """Update the listbox with new entries."""
+        listbox.delete(0, tk.END)
+        for entry in entries:
+            listbox.insert(tk.END, entry["username"])
+        
+# Refresh case list function
+def refresh_case_list():
+    """Fetch cases from the database and display them in the treeview."""
+    for row in case_treeview.get_children():
+        case_treeview.delete(row)
+
+    cases = get_all_cases()
+    for case in cases:
+        technicians = ", ".join(case["technician_usernames"])
+        case_treeview.insert("", "end", values=(case["bss_num"], case["dep_num"], 
+                                                case["expert_username"], technicians, case["status"]))
+
+def create_new_case():
+    """Creates a new case in the database."""
+    bss_num = bss_num_entry.get()
+    dep_num = dep_num_entry.get()
+    status = status_menu.get()
+    assigned_to = assigned_to_dropdown.get()
+
+    if not bss_num.strip() or not dep_num.strip() or not status or not assigned_to.strip():
+        CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
+        return
+
+    try:
+        create_case(bss_num, dep_num, status, assigned_to_id, technician_ids_list)
+        CTkMessagebox(master=app, title="Success", message=f"Case '{bss_num}' created successfully!")
+        bss_num_entry.delete(0, tk.END)
+        dep_num_entry.delete(0, tk.END)
+        refresh_case_list()
+    except Exception as e:
+        CTkMessagebox(master=app, title="Error Creating Case", message=f"Error Creating Case: {e}")
+        print(f"Error Creating Case: {e}")
+
+def modify_selected_case():
+    """Modifies the selected case's information in the database."""
+    selected_item = case_treeview.selection()
+    if not selected_item:
+        CTkMessagebox(master=app, title="Error", message="Please select a case to modify.")
+        return
+
+    case_id = case_treeview.item(selected_item, "values")[0]
+    bss_num = bss_num_entry.get()
+    dep_num = dep_num_entry.get()
+    status = status_menu.get()
+    assigned_to = assigned_to_dropdown.get()
+
+    if not bss_num.strip() and not dep_num.strip() and not status and not assigned_to.strip():
+        CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
+        return
+
+    try:
+        update_case(case_id, bss_num, dep_num, status, assigned_to_id, technician_ids_list)
+        CTkMessagebox(master=app, title="Success", message="Case updated successfully!")
+        refresh_case_list()
+    except Exception as e:
+        CTkMessagebox(master=app, title="Error", message=f"Error Updating Case: {e}")
+        print(f"Error Updating Case: {e}")
+
+def delete_selected_case():
+    """Deletes the selected case from the database."""
+    selected_item = case_treeview.selection()
+    if not selected_item:
+        CTkMessagebox(master=app, title="Error", message="Please select a case to delete.")
+        return
+
+    case_bss_num = case_treeview.item(selected_item, "values")[0]
+    try:
+        delete_case(case_bss_num)
+        CTkMessagebox(master=app, title="Success", message="Case deleted successfully!")
+        refresh_case_list()
+    except Exception as e:
+        CTkMessagebox(master=app, title="Error", message=f"Error Deleting Case: {e}")
+        print(f"Error Deleting Case: {e}")
+        
+"""
+---------------------- CASE MANAGEMENT TAB ----------------------
+
+"""
+cases = get_all_cases()
+users = get_all_users()
+
+# Create a frame for the main content of the Case Management tab
+main_frame = ctk.CTkFrame(tab_frames[2])
+main_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+# Add a frame for the treeview
+treeview_frame = ctk.CTkFrame(main_frame, corner_radius=5)
+treeview_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+# Treeview for Cases
+columns = ("BSS Number", "Department Number", "Expert", "Technicians", "Status")
+
+case_treeview = ttk.Treeview(treeview_frame, columns=columns, show="headings", height=5)
+for col in columns:
+    case_treeview.heading(col, text=col)
+    case_treeview.column(col, minwidth=100, width=150, stretch=tk.NO)
+
+case_treeview.pack(padx=10, pady=10, fill="both", expand=True)
+scrollbar = ttk.Scrollbar(case_treeview, orient="vertical", command=case_treeview.yview)
+case_treeview.configure(yscroll=scrollbar.set)
+scrollbar.pack(side="right", fill="y")
+
+# Sub-frame for the Form
+form_frame = ctk.CTkFrame(main_frame)
+form_frame.pack(pady=10, fill="x")
+
+ctk.CTkLabel(form_frame, text="Manage cases", font=("Roboto", 24)).pack(side="top", padx=5, pady=10)
+
+# Input Fields with Labels
+input_frame = ctk.CTkFrame(form_frame, fg_color="transparent", width=200)
+input_frame.pack(pady=10)
+
+ctk.CTkLabel(input_frame, text="BSS Number:").pack(side="left", padx=5)
+bss_num_entry = ctk.CTkEntry(input_frame, placeholder_text="BSS Number")
+bss_num_entry.pack(side="left", padx=15)
+
+ctk.CTkLabel(input_frame, text="Department Number:").pack(side="left", padx=5)
+dep_num_entry = ctk.CTkEntry(input_frame, placeholder_text="Department Number")
+dep_num_entry.pack(side="left", padx=15)
+
+ctk.CTkLabel(input_frame, text="Status:").pack(side="left")
+status_menu = ctk.CTkComboBox(input_frame, values=["open", "closed", "in_progress"])
+status_menu.pack(side="left", padx=15)
+
+# Assigned To and Technician IDs
+list_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+list_frame.pack(padx=50, pady=10, fill="x")
+
+sub_frame1 = ctk.CTkFrame(list_frame, fg_color="transparent", width=200)
+sub_frame2 = ctk.CTkFrame(list_frame, fg_color="transparent", width=100)
+sub_frame1.pack(side="left", padx=50, pady=5)
+sub_frame2.pack(side="left", padx=10, pady=5)
+
+ctk.CTkLabel(sub_frame1, text="Expert Assigned To:").pack(side="left", padx=5)
+
+assigned_to_dropdown = ttk.Combobox(sub_frame1)
+assigned_to_dropdown.pack(side=["left"], padx=10, fill="x")
+
+# Populate dropdowns
+assigned_to_dropdown['values'] = [entry["username"] for entry in get_usernames("Expert")]
+
+ctk.CTkLabel(sub_frame2, text="Technician IDs:").pack(side="left", padx=5)
+
+technician_ids_listbox = tk.Listbox(sub_frame2, selectmode=tk.MULTIPLE, width=80)
+technician_ids_listbox.pack(side=["left"], pady=5, padx=5, fill="y")
+
+# Populate listbox
+technician_ids_listbox.insert(tk.END, *[entry["username"] for entry in get_usernames("Technician")])
+
+# Buttons Frame
+button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+button_frame.pack(pady=10)
+
+create_btn = ctk.CTkButton(button_frame, text="Create Case", corner_radius=7, command=create_new_case)
+modify_btn = ctk.CTkButton(button_frame, text="Modify Case", corner_radius=7, command=modify_selected_case)
+delete_btn = ctk.CTkButton(button_frame, text="Delete Case", corner_radius=7, command=delete_selected_case)
+
+create_btn.pack(side="left", padx=10)
+modify_btn.pack(side="left", padx=10)
+delete_btn.pack(side="left", padx=10)
 
 # **Add copyright text with white color and centered alignment**
-copyright_text = customtkinter.CTkLabel(footer_frame, text="© 2024 YOTTA", text_color="gray", anchor="center",)
+copyright_text = ctk.CTkLabel(footer_frame, text="© 2024 YOTTA", text_color="gray", anchor="center",)
 copyright_text.pack(padx=10, pady=10, fill="x")
 
+"""
+--------------------- DETECTION TAB FUNCTIONS ---------------------
+
+"""
 def start_detection():
     global cap, running, save_directory, client
     
@@ -319,7 +509,7 @@ def start_detection():
     pause_button.configure(state="normal")  # Enable pause button when detection starts
     confidence_entry.configure(state="disabled")  # Disable confidence entry editing
     exit_button.configure(state="disabled") # Disable exit button when detection starts
-    send_email_button.configure(state="normal")  # Enable the "Send Email" button
+    # send_email_button.configure(state="normal")  # Enable the "Send Email" button
     detect_objects()  # Pass the collection object
 
 def stop_detection():
@@ -330,7 +520,7 @@ def stop_detection():
     open_folder_button.configure(state="normal")
     pause_button.configure(state="disable")
     exit_button.configure(state="normal")
-    send_email_button.configure(state="disable")  # disable the "Send Email" button
+    # send_email_button.configure(state="disable")  # disable the "Send Email" button
     clear_image_label()
 
 def open_save_folder():
@@ -483,7 +673,7 @@ def detect_objects():
 
     # Update the GUI with the processed frame
     img = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
-    photo = customtkinter.CTkImage(img, size=(860, 820))
+    photo = ctk.CTkImage(img, size=(860, 820))
     image_label.configure(image=photo)
     image_label.image = photo
 
@@ -560,7 +750,6 @@ def send_email_report(archive_dir):
 
     server.send_message(msg, from_addr=sender_email, to_addrs=to_recipients) # to_addrs = to_receivers if we add Cc recipients
 
-
 def send_email_in_thread(archive_path):
     try:
         send_email_report(archive_path)
@@ -619,6 +808,36 @@ app.protocol("WM_DELETE_WINDOW", ask_question)
 
 # Run the scheduled tasks loop within the main application loop
 run_scheduled_tasks()
+
+"""
+--------------------- CASE MANAGEMENT TAB FUNCTIONS ---------------------
+"""
+
+def on_assigned_to_select(event):
+        global assigned_to_id
+        selected_user = assigned_to_dropdown.get()
+        user = db.users.find_one({"username": selected_user}, {"_id": 1})
+        assigned_to_id = user["_id"] if user else None
+
+def on_technician_select(event):
+    global technician_ids_list
+    selected_indices = technician_ids_listbox.curselection()
+    selected_techs = [technician_ids_listbox.get(i) for i in selected_indices]
+    technician_ids_list = [db.users.find_one({"username": tech.strip()}, {"_id": 1})["_id"] for tech in selected_techs if db.users.find_one({"username": tech.strip()}, {"_id": 1})]
+
+assigned_to_dropdown.bind("<<ComboboxSelected>>", on_assigned_to_select)
+technician_ids_listbox.bind("<<ListboxSelect>>", on_technician_select)
+
+
+def on_technician_select(event):
+    global technician_ids_list
+    selected_indices = technician_ids_listbox.curselection()
+    selected_techs = [technician_ids_listbox.get(i) for i in selected_indices]
+    technician_ids_list = [db.users.find_one({"username": tech.strip()}, {"_id": 1})["_id"] for tech in selected_techs if db.users.find_one({"username": tech.strip()}, {"_id": 1})]
+
+technician_ids_listbox.bind("<<ListboxSelect>>", on_technician_select)
+
+refresh_case_list()
 
 app.mainloop()
 
