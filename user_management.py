@@ -11,13 +11,6 @@ from helper import create_user, hash_password, check_email, get_all_users, updat
 roles = get_forento_roles()
 print(f"list of roles: {roles}")
 
-# def destroy_login_window_and_show_main_window():
-#     """Destroys the login window and shows the main window."""
-#     app.destroy()
-#     # Import the main app here to avoid circular imports
-#     from mongodb import app # noqa
-#     app.start_app()
-
 def refresh_user_list():
     """Fetch users from the database and display them in the treeview."""
     for row in user_treeview.get_children():
@@ -76,19 +69,22 @@ def modify_selected_user():
         CTkMessagebox(master=app, title="Error", message="Please select a user to modify.")
         return
     
-    email = user_treeview.item(selected_item, "values")[1]
-    username = username_entry.get()
-    email = email_entry.get()
-    selected_role = roles_menu.get()
+    current_email = user_treeview.item(selected_item, "values")[1]
+    username = username_entry.get().strip()
+    new_email = email_entry.get().strip()
+    pwd = pwd_entry.get().strip()
+    selected_role = roles_menu.get().strip()
 
-    if not username.strip() or not email.strip() or not selected_role:
-        CTkMessagebox(title="Missing Information", message="Please fill out all fields.")
+    if not username and not new_email and not pwd and not selected_role:
+        CTkMessagebox(title="Missing Information", message="Please fill out at least one field.")
         return
 
     try:
-        update_user(username, email, selected_role)
+        update_user(current_email, username if username else None, new_email if new_email else None, selected_role if selected_role else None, pwd if pwd else None)
         CTkMessagebox(master=app, title="Success", message="User updated successfully!")
         refresh_user_list()
+    except ValueError as ve:
+        CTkMessagebox(master=app, title="Error", message=str(ve))
     except Exception as e:
         CTkMessagebox(master=app, title="Error", message=f"Error Updating User")
         print(f"Error Updating User: {e}")
@@ -116,8 +112,13 @@ if __name__ == "__main__":
     app = ctk.CTk()
     app.title("Forento Fly Detector")
     app.geometry("1100x850")
+    
+    # Main Frame
+    main_frame = ctk.CTkFrame(app)
+    main_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
-    header_frame = ctk.CTkFrame(app, corner_radius=5)
+    # Header
+    header_frame = ctk.CTkFrame(main_frame, corner_radius=5)
     header_frame.pack(side="top", fill="x", padx=10)
 
     logo_image = ctk.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
@@ -127,38 +128,8 @@ if __name__ == "__main__":
     logo_label.pack(side="left", padx=40, pady=5)
     app_name_label.pack(side="left", pady=5)
 
-    register_frame = ctk.CTkFrame(app, corner_radius=5)
-    register_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-    auth_frame = ctk.CTkFrame(register_frame, border_width=1, border_color="#101c12", corner_radius=14)
-    auth_frame.pack(padx=20, pady=20, fill="both", expand=True)
-
-    label = ctk.CTkLabel(master=auth_frame, text="Create new user", font=("Roboto", 24))
-    label.pack(pady=20, padx=10)
-
-    username_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="Username")
-    username_entry.pack(pady=12, padx=10)
-
-    pwd_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="Password", show="*")
-    pwd_entry.pack(pady=12, padx=10)
-
-    email_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="example@outlook.com")
-    email_entry.pack(pady=12, padx=10)
-
-    role_names = [role for role in roles]
-    roles_menu = ctk.CTkComboBox(master=auth_frame, values=role_names)
-    roles_menu.pack(pady=12, padx=10)
-
-    create_btn = ctk.CTkButton(
-        master=auth_frame,
-        text="Create User",
-        corner_radius=7,
-        command=create_new_user
-    )
-    create_btn.pack(pady=15)
-
     # Add a frame for the treeview
-    treeview_frame = ctk.CTkFrame(app, corner_radius=5)
+    treeview_frame = ctk.CTkFrame(main_frame, corner_radius=5)
     treeview_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
     # Add a treeview to display users
@@ -166,16 +137,55 @@ if __name__ == "__main__":
     user_treeview = ttk.Treeview(treeview_frame, columns=columns, show="headings", height=10)
     for col in columns:
         user_treeview.heading(col, text=col)
-        user_treeview.column(col, minwidth=0, width=100, stretch=tk.NO)
+        user_treeview.column(col, minwidth=100, width=150, stretch=tk.NO)
 
     user_treeview.pack(padx=10, pady=10, fill="both", expand=True)
-    scrollbar = ttk.Scrollbar(treeview_frame, orient="vertical", command=user_treeview.yview)
+    scrollbar = ttk.Scrollbar(user_treeview, orient="vertical", command=user_treeview.yview)
     user_treeview.configure(yscroll=scrollbar.set)
     scrollbar.pack(side="right", fill="y")
 
-    # Add modify and delete buttons
-    button_frame = ctk.CTkFrame(app, corner_radius=5)
-    button_frame.pack(pady=10)
+    # Add form to manage users data
+    form_frame = ctk.CTkFrame(main_frame, corner_radius=5)
+    form_frame.pack(padx=10, pady=10, fill="x", expand=True)
+
+    auth_frame = ctk.CTkFrame(form_frame, border_width=1, border_color="#101c12", corner_radius=14)
+    auth_frame.pack(padx=20, pady=10, fill="x", expand= True)
+
+    sub_frame1 = ctk.CTkFrame(auth_frame, fg_color="transparent", width=100)
+    sub_frame2 = ctk.CTkFrame(auth_frame, fg_color="transparent", width= 100)
+    
+    ctk.CTkLabel(auth_frame, text="Manage users", font=("Roboto", 24)).pack(side="top", padx=5, pady= 10)
+    sub_frame1.pack(padx=10, pady=5)
+    sub_frame2.pack(padx=10, pady=5)
+        
+
+    ctk.CTkLabel(sub_frame1, text="Full name:").pack(side="left", padx=5, pady= 20)
+    username_entry = ctk.CTkEntry(sub_frame1, placeholder_text="Full name")
+    username_entry.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+
+    ctk.CTkLabel(sub_frame1, text="Password:").pack(side="left", padx=5, pady= 20)
+    pwd_entry = ctk.CTkEntry(sub_frame1, placeholder_text="Password", show="*")
+    pwd_entry.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+
+    ctk.CTkLabel(sub_frame2, text="Email:").pack(side="left", padx=5, pady= 20)
+    email_entry = ctk.CTkEntry(sub_frame2, placeholder_text="example@outlook.com")
+    email_entry.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+
+    ctk.CTkLabel(sub_frame2, text="Role:").pack(side="left", padx=5, pady= 20)
+    role_names = [role for role in roles]
+    roles_menu = ctk.CTkComboBox(sub_frame2, values=role_names)
+    roles_menu.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+
+    # Buttons Frame
+    button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+    button_frame.pack(pady=20)
+
+    create_btn = ctk.CTkButton(
+        master=button_frame,
+        text="Create User",
+        corner_radius=7,
+        command=create_new_user
+    )
 
     modify_btn = ctk.CTkButton(
         master=button_frame,
@@ -183,7 +193,6 @@ if __name__ == "__main__":
         corner_radius=7,
         command=modify_selected_user
     )
-    modify_btn.pack(side="left", padx=10)
 
     delete_btn = ctk.CTkButton(
         master=button_frame,
@@ -191,6 +200,9 @@ if __name__ == "__main__":
         corner_radius=7,
         command= delete_selected_user
     )
+    
+    create_btn.pack(side="left", padx=10)
+    modify_btn.pack(side="left", padx=10)
     delete_btn.pack(side="left", padx=10)
 
     refresh_user_list()

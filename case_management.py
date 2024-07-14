@@ -87,6 +87,16 @@ if __name__ == "__main__":
     # Main Frame
     main_frame = ctk.CTkFrame(app)
     main_frame.pack(padx=10, pady=10, fill="both", expand=True)
+    
+    header_frame = ctk.CTkFrame(main_frame, corner_radius=5)
+    header_frame.pack(side="top", fill="x", padx=10)
+
+    logo_image = ctk.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
+
+    app_name_label = ctk.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
+    logo_label = ctk.CTkLabel(header_frame, image=logo_image, text=" ", anchor='center')
+    logo_label.pack(side="left", padx=40, pady=5)
+    app_name_label.pack(side="left", pady=5)
 
     # Treeview for Cases
     columns = ("BSS Number", "Department Number", "Expert", "Technicians", "Status")
@@ -230,7 +240,7 @@ if __name__ == "__main__":
             print(f"Error Deleting Case: {e}")
     
     # Buttons Frame
-    button_frame = ctk.CTkFrame(main_frame)
+    button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
     button_frame.pack(pady=10)
 
     create_btn = ctk.CTkButton(button_frame, text="Create Case", corner_radius=7, command=create_new_case)
