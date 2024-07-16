@@ -263,7 +263,7 @@ image_frame = ctk.CTkFrame(content_frame)
 image_frame.pack(side="left", fill="both", expand=True, padx=5, pady=10)
 
 # **Create frame for footer**
-footer_frame = ctk.CTkFrame(main_container)
+footer_frame = ctk.CTkFrame(app)
 footer_frame.pack(side="bottom", fill="x", padx=5, pady=5, anchor="center")
 
 # **Create buttons in sidebar (replace with your functionality)**
@@ -409,7 +409,6 @@ def archive_images(storage_path, archive_path):
         print(f"Moved {zip_filename} to {archive_path}")
 def detect_objects():
     global running, cap, save_directory, collection_name
-    
     
     if not running:
         return
@@ -746,7 +745,7 @@ treeview_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
 # Add a treeview to display users
 columns = ("Username", "Email", "Role")
-user_treeview = ttk.Treeview(treeview_frame, columns=columns, show="headings", height=10)
+user_treeview = ttk.Treeview(treeview_frame, columns=columns, show="headings", height=18)
 for col in columns:
     user_treeview.heading(col, text=col)
     user_treeview.column(col, minwidth=100, width=150, stretch=tk.NO)
@@ -758,10 +757,10 @@ scrollbar.pack(side="right", fill="y")
 
 # Add form to manage users data
 form_frame = ctk.CTkFrame(main_frame, corner_radius=5)
-form_frame.pack(padx=10, pady=10, fill="x", expand=True)
+form_frame.pack(padx=5, pady=5, fill="both", expand=True)
 
 auth_frame = ctk.CTkFrame(form_frame, border_width=1, border_color="#101c12", corner_radius=14)
-auth_frame.pack(padx=20, pady=10, fill="x", expand= True)
+auth_frame.pack(padx=5, pady=5, fill="both", expand= True)
 
 sub_frame1 = ctk.CTkFrame(auth_frame, fg_color="transparent", width=100)
 sub_frame2 = ctk.CTkFrame(auth_frame, fg_color="transparent", width= 100)
@@ -773,23 +772,23 @@ sub_frame2.pack(padx=10, pady=5)
 
 ctk.CTkLabel(sub_frame1, text="Full name:").pack(side="left", padx=5, pady= 20)
 username_entry = ctk.CTkEntry(sub_frame1, placeholder_text="Full name")
-username_entry.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+username_entry.pack(side="left", padx=5, pady= 5, fill="x", expand=True)
 
 ctk.CTkLabel(sub_frame1, text="Password:").pack(side="left", padx=5, pady= 20)
 pwd_entry = ctk.CTkEntry(sub_frame1, placeholder_text="Password", show="*")
-pwd_entry.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+pwd_entry.pack(side="left", padx=5, pady= 5, fill="x", expand=True)
 
 ctk.CTkLabel(sub_frame2, text="Email:").pack(side="left", padx=5, pady= 20)
 email_entry = ctk.CTkEntry(sub_frame2, placeholder_text="example@outlook.com")
-email_entry.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+email_entry.pack(side="left", padx=5, pady= 5, fill="x", expand=True)
 
 ctk.CTkLabel(sub_frame2, text="Role:").pack(side="left", padx=5, pady= 20)
 role_names = [role for role in roles]
 roles_menu = ctk.CTkComboBox(sub_frame2, values=role_names)
-roles_menu.pack(side="left", padx=5, pady= 10, fill="x", expand=True)
+roles_menu.pack(side="left", padx=5, pady= 5, fill="x", expand=True)
 
 # Buttons Frame
-button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+button_frame = ctk.CTkFrame(auth_frame, fg_color="transparent")
 button_frame.pack(pady=20)
 
 create_btn = ctk.CTkButton(
