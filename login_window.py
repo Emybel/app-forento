@@ -4,8 +4,8 @@ import tkinter as tk
 import customtkinter as ctk
 from PIL import Image
 from CTkMessagebox import CTkMessagebox
-from actions import create_user, hash_password, check_email
-from setup_db.roles import get_forento_roles
+from helper import hash_password
+# from setup_db.roles import get_forento_roles
 from setup_db.db import db
 
 def login_user():
@@ -22,14 +22,15 @@ def login_user():
         CTkMessagebox(title="Invalid Email", message="Please provide a valid email address.")
         return
 
+    hashed_pwd = hash_password(password)
     user = db.users.find_one({"email": email})
     if user:
         username = user["username"]
-        stored_hashed_password = user["password"]["hashed_pwd"][0]
-        stored_salt = user["password"]["hashed_pwd"][1]
+        stored_hashed_password = user["password"][0] # Get base64 string
+        stored_salt = user["password"][1]
         
         # Use bcrypt to check the password
-        if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password):
+        if bcrypt.checkpw(hashed_pwd, stored_hashed_password):
             logged_in_user_id = user["_id"]
             # Clear the fields
             pwd_entry.delete(0, tk.END)
