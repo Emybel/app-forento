@@ -33,8 +33,6 @@ from CTkMessagebox import CTkMessagebox
 from datetime import datetime, timedelta
 from setup_db.roles import get_forento_roles
 from email.mime.multipart import MIMEMultipart
-# from collections import defaultdict
-# from customtkinter import CTkMessagebox
 
 client = MongoClient('mongodb://localhost:27017', username="Admin", password="ForentoAdmin1055", authSource="forento", authMechanism="SCRAM-SHA-256")
 db = client["forento"]
@@ -395,7 +393,7 @@ def archive_images(storage_path, archive_path):
 
     # Create a zip file for each date
     for date, files in files_by_date.items():
-        zip_filename = f"archive_{date.strftime('%Y%m%d')}.zip"
+        zip_filename = f"detections_{date.strftime('%Y-%m-%d')}.zip"
         zip_path = os.path.join(storage_path, zip_filename)
         with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
             for file_path in files:
@@ -514,12 +512,12 @@ def send_email_report(archive_dir):
 
     # Email configuration
     sender_email = "imanebelaid@hotmail.com"
-    to_recipients = ["belaidimane@gmail.com"]
+    receiver_emails = ["belaidimane@gmail.com"]
     # cc_recipients = ["recipient2@example.com", "recipient3@example.com"]
-    subject = f"Daily Detection Report - {datetime.datetime.now().strftime('%m-%d-%Y')}"
+    subject = f"Daily Detection Report - {datetime.now().strftime('%m-%d-%Y')}"
 
     # Find the zip file for the current date
-    current_date = datetime.datetime.now().date()
+    current_date = datetime.now().date()
     zip_pattern = r"archive_(\d{8})\.zip"
     zip_filename = f"archive_{current_date.strftime('%Y%m%d')}.zip"
     zip_path = os.path.join(archive_dir, zip_filename)
@@ -528,7 +526,8 @@ def send_email_report(archive_dir):
         body_text = f"""Hi,
 
         This is a daily email with relevant information about detections made on {current_date.strftime('%m-%d-%Y')}.
-        Please see the attached zip archive for captured fly images.
+        
+        Please see the attached zip file for captured fly images.
 
         Best regards,
         Forento
@@ -537,6 +536,7 @@ def send_email_report(archive_dir):
         body_text = f"""Hi,
 
         This is a daily email with relevant information about detections made on {current_date.strftime('%m-%d-%Y')}.
+        
         No flies were detected.
 
         Best regards,
@@ -546,8 +546,8 @@ def send_email_report(archive_dir):
     # Create message
     msg = MIMEMultipart()
     msg["From"] = sender_email
-    msg["To"] = to_recipients
-    # msg["To"] = ", ".join(receiver_emails)  # Join the list of recipients with commas
+    # msg["To"] = to_recipients
+    msg["To"] = ", ".join(receiver_emails)  # Join the list of recipients with commas
     msg["Subject"] = subject
     msg.attach(MIMEText(body_text, "plain"))
 
@@ -571,7 +571,7 @@ def send_email_report(archive_dir):
     status_code, response = server.ehlo()
     print(f"Echoing server : {status_code} {response}")
 
-    server.send_message(msg, from_addr=sender_email, to_addrs=to_recipients) # to_addrs = to_receivers if we add Cc recipients
+    server.send_message(msg, from_addr=sender_email, to_addrs=receiver_emails) # to_addrs = to_receivers if we add Cc recipients
 
 def send_email_in_thread(archive_path):
     try:
@@ -579,7 +579,7 @@ def send_email_in_thread(archive_path):
     except Exception as e:
         print(f"Error sending email report: {e}")
 
-def clear_save_directory(archive_dir, days=30):
+def clear_save_directory(archive_dir, days=365):
     """
     Clears the archive_dir by removing ZIP files older than the specified number of days.
 
@@ -588,16 +588,20 @@ def clear_save_directory(archive_dir, days=30):
         days (int): The number of days to keep the ZIP files (default is 30 days).
     """
     now = datetime.now()
-    cutoff_date = now - datetime.timedelta(days=days)
+    cutoff_date = now - timedelta(days=days)
+    print(f"Cuatoff date: {cutoff_date.date()}")
 
     for file_name in os.listdir(archive_dir):
         file_path = os.path.join(archive_dir, file_name)
         if file_name.endswith(".zip"):
             # Remove the file extension before parsing the date
             date_part = file_name.split("_")[1].split(".")[0]
+            print(f"date part: {date_part}")
             try:
-                file_date = datetime.strptime(file_name.split("_")[1], "%Y%m%d").date()
-                if file_date < cutoff_date:
+                file_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+                print(f"File date: {file_date}")
+                
+                if file_date < cutoff_date.date():
                     os.remove(file_path)
                     print(f"Removed {file_path}")
             except Exception as e:
@@ -617,14 +621,14 @@ def archive_and_clear():
     os.makedirs(storage_path)
 
     # Clear the archive_path of old ZIP files (e.g., older than 30 days)
-    clear_save_directory(archive_path, days=30)
+    clear_save_directory(archive_path)
 
 def run_scheduled_tasks():
     schedule.run_pending()
     app.after(60000, run_scheduled_tasks)  # Check for scheduled tasks every minute
 
 # Schedule the archive_and_clear function to run at 23:59 (11:59 PM) every day
-schedule.every().day.at("10:22").do(archive_and_clear)
+schedule.every().day.at("12:07").do(archive_and_clear)
 
 """
 ------------------------- CASE MANAGEMENT TAB FUNCTIONS ---------------------------
@@ -700,6 +704,10 @@ def modify_selected_user():
     if not username and not new_email and not pwd and not selected_role:
         CTkMessagebox(title="Missing Information", message="Please fill out at least one field.")
         return
+    
+    if check_email(new_email):
+        CTkMessagebox(title="Email already exists", message="This email is already used by another user. Please give another email adress.")
+        return
 
     try:
         update_user(current_email, username if username else None, new_email if new_email else None, selected_role if selected_role else None, pwd if pwd else None)
@@ -768,7 +776,7 @@ sub_frame2 = ctk.CTkFrame(auth_frame, fg_color="transparent", width= 100)
 ctk.CTkLabel(auth_frame, text="Manage users", font=("Roboto", 24)).pack(side="top", padx=5, pady= 10)
 sub_frame1.pack(padx=10, pady=5)
 sub_frame2.pack(padx=10, pady=5)
-    
+
 
 ctk.CTkLabel(sub_frame1, text="Full name:").pack(side="left", padx=5, pady= 20)
 username_entry = ctk.CTkEntry(sub_frame1, placeholder_text="Full name")
