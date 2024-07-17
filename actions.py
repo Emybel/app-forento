@@ -11,11 +11,6 @@ def get_user_role(user_id):
     user = db.users.find_one({"_id": ObjectId(user_id)})
     return user["role"] if user else None
 
-# Check is user exists
-def check_email(email):
-    user = db.users.find_one({"email": email})
-    return user is not None
-
 # Administrator Actions
 def create_user(username, hashed_password, email, role):
     last_login = datetime.datetime.utcnow()

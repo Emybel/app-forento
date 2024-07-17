@@ -15,14 +15,22 @@ def hash_password(password, salt=salt):
     return hashed_password, salt
 
 def create_user(username, hashed_password, email, role):
-    """Create a new user in the forento.users collection."""
+    last_login = datetime.utcnow()
+    if role not in ["Administrator", "Expert", "Technician"]:
+        raise ValueError("Invalid role")
+    
     user = {
         "username": username,
-        "password": hashed_password,
+        "password": {
+            "hashed_pwd": hashed_password
+            },
         "email": email,
-        "role": role
+        "role": role,
+        "created_at": datetime.utcnow(),  # Set created_at to current UTC time
+        "last_login": last_login  # Initialize last_login to None
     }
-    return db["users"].insert_one(user).inserted_id
+    result = db.users.insert_one(user)
+    return result.inserted_id
 
 def get_all_users():
     """Fetch all users from the forento.users collection."""
