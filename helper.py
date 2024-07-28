@@ -24,7 +24,7 @@ def create_user(username, hashed_password, email, role):
         "password": {
             "hashed_pwd": hashed_password
             },
-        "email": email,
+        "email": email.strip().lower(),
         "role": role,
         "created_at": datetime.utcnow(),  # Set created_at to current UTC time
         "last_login": last_login  # Initialize last_login to None
