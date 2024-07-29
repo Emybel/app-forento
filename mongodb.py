@@ -40,7 +40,6 @@ client = MongoClient('mongodb://localhost:27017', username="Admin", password="Fo
 db = client["forento"]
 collection = db['fly_detections']
 
-
 # Define the path to the model
 model_path = "forentoModel.pt"
 
@@ -173,9 +172,7 @@ def on_login_click(email_entry, pwd_entry, login_window):
         email_entry.delete(0, tk.END)
         login_window.destroy()
         is_user_logged_in = True  # Set flag to True
-        
-        # Show the main app window (discussed later)
-        # app.mainloop()  # Start the main app loop
+        app.deiconify()  # Make the main app window visible
         
         # Return the retrieved data as a tuple
         return logged_in_user_id, user_role, username
@@ -236,8 +233,7 @@ ctk.set_default_color_theme("green")
 app = ctk.CTk()
 # app.iconbitmap("asset/logo.png") # **Set a bitmap icon for the app**
 
-# login window
-login_window, email_entry, pwd_entry = create_login_window()
+app.withdraw()  # Hide the main app window initially
 
 # Set height and width of the app
 app_width = 1100
@@ -255,7 +251,6 @@ app.geometry(f"{app_width}x{app_height}+{int(x)}+{int(y)}")
 app.resizable(height=False, width=False)
 # Set window title
 app.title("Forento Fly Detector")
-
 
 # **Create frame for header**
 header_frame = ctk.CTkFrame(app, corner_radius=5)
@@ -390,6 +385,8 @@ pause_button.pack(pady=10, padx=10)
 
 play_button = ctk.CTkButton(sidebar_frame, image= play_icon, text=' ', corner_radius=100, command=lambda: resume_detection(), state="disabled")
 play_button.pack(pady=10, padx=10)
+
+
 
 """
 --------------------- DETECTION TAB FUNCTIONS ---------------------
@@ -1166,6 +1163,10 @@ def on_technician_select(event):
 technician_ids_listbox.bind("<<ListboxSelect>>", on_technician_select)
 
 refresh_case_list()
+
+# login window
+login_window, email_entry, pwd_entry = create_login_window()
+
 app.mainloop()
 
 # Release the capture when the app is closed
