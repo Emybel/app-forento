@@ -25,6 +25,7 @@ from tkinter import ttk
 from email import encoders
 from ultralytics import YOLO
 from login import login_user
+from functools import partial
 from util.createjson import *
 from tkinter import filedialog
 from pymongo import MongoClient
@@ -74,8 +75,6 @@ images_to_archive = []
 fly_data_per_frame = []
 storage_path = "./data/storage"
 archive_path = "./data/archive"
-global is_user_logged_in
-
 is_user_logged_in = False
 
 
@@ -163,7 +162,8 @@ def update_tab_styles(selected_index):
         else:
             button.configure(fg_color="transparent", font=("Arial", 12), corner_radius=0, border_width=0)  # Inactive tab style
 
-def on_login_click():
+def on_login_click(email_entry, pwd_entry, login_window):
+    global is_user_logged_in
     email = email_entry.get()
     password = pwd_entry.get()
     logged_in_user_id, user_role, username = login_user(email, password)
@@ -173,12 +173,9 @@ def on_login_click():
         email_entry.delete(0, tk.END)
         login_window.destroy()
         is_user_logged_in = True  # Set flag to True
-        # Use retrieved data (e.g., display username)
-        # username_label = ctk.CTkLabel(app, text=f"Welcome, {username}!")
-        # username_label.pack()  # Display username in the main app
-
+        
         # Show the main app window (discussed later)
-        app.mainloop()  # Start the main app loop
+        # app.mainloop()  # Start the main app loop
         
         # Return the retrieved data as a tuple
         return logged_in_user_id, user_role, username
@@ -187,12 +184,49 @@ def on_login_click():
         CTkMessagebox(title="Login Failed", message="Invalid email or password")
         return None, None, None  # Return None for each value on failure
 def create_login_window():
-    login_window = tk.Toplevel()  # Create a new top-level window
-    login_window.title("Login")
+    login_window = ctk.CTkToplevel()  # Create a new top-level window
+    login_window.title("Forento Fly Detector | Login")
+    login_window.geometry("480x900")
 
-    # Your login window content here (similar to your previous frame)
+    header_frame = ctk.CTkFrame(login_window, corner_radius=5)
+    header_frame.pack(side="top", fill="x", padx=10)
 
-    return login_window
+    logo_image = ctk.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
+
+    app_name_label = ctk.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
+    logo_label = ctk.CTkLabel(header_frame, image=logo_image, text=" ", anchor='center')
+    logo_label.pack(side="left", padx=40, pady=5)
+    app_name_label.pack(side="left", pady=5)
+
+    login_frame = ctk.CTkFrame(login_window, corner_radius=5)
+    login_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+    auth_frame = ctk.CTkFrame(login_frame, border_width=1, border_color="#101c12", corner_radius=14)
+    auth_frame.pack(padx=20, pady=20, fill="both", expand=True)
+
+    label = ctk.CTkLabel(master=auth_frame, text="Login", font=("Roboto", 24))
+    label.pack(pady=20, padx=10)
+
+    email_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="example@outlook.com")
+    email_entry.pack(pady=12, padx=10)
+
+    pwd_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="Password", show="*")
+    pwd_entry.pack(pady=12, padx=10)
+
+    email = email_entry.get()
+    password = pwd_entry.get()
+
+    login_btn = ctk.CTkButton(
+        master=auth_frame,
+        text="Login",
+        corner_radius=7,
+        command=partial(on_login_click, email_entry, pwd_entry, login_window)
+    )
+    login_btn.pack(pady=15)
+
+    login_window.mainloop()
+
+    return login_window, email_entry, pwd_entry
 
 # Set appearance mode
 ctk.set_appearance_mode("System")
@@ -201,6 +235,9 @@ ctk.set_default_color_theme("green")
 # Create main app window
 app = ctk.CTk()
 # app.iconbitmap("asset/logo.png") # **Set a bitmap icon for the app**
+
+# login window
+login_window, email_entry, pwd_entry = create_login_window()
 
 # Set height and width of the app
 app_width = 1100
@@ -219,51 +256,6 @@ app.resizable(height=False, width=False)
 # Set window title
 app.title("Forento Fly Detector")
 
-login_window = ctk.CTk()
-login_window.title("Forento Fly Detector")
-login_window.geometry("480x900")
-
-header_frame = ctk.CTkFrame(login_window, corner_radius=5)
-header_frame.pack(side="top", fill="x", padx=10)
-
-logo_image = ctk.CTkImage(Image.open("asset/logo.png"), size=(80, 80))
-
-app_name_label = ctk.CTkLabel(header_frame, text="FORENTO Fly Detector", font=("Arial", 20), anchor="center")
-# logo_label = ctk.CTkLabel(header_frame, image=logo_image, text=" ", anchor='center')
-# logo_label.pack(side="left", padx=40, pady=5)
-app_name_label.pack(side="left", pady=5)
-
-login_frame = ctk.CTkFrame(login_window, corner_radius=5)
-login_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-auth_frame = ctk.CTkFrame(login_frame, border_width=1, border_color="#101c12", corner_radius=14)
-auth_frame.pack(padx=20, pady=20, fill="both", expand=True)
-
-label = ctk.CTkLabel(master=auth_frame, text="Login", font=("Roboto", 24))
-label.pack(pady=20, padx=10)
-
-email_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="example@outlook.com")
-email_entry.pack(pady=12, padx=10)
-
-pwd_entry = ctk.CTkEntry(master=auth_frame, placeholder_text="Password", show="*")
-pwd_entry.pack(pady=12, padx=10)
-
-email = email_entry.get()
-password = pwd_entry.get()
-
-login_btn = ctk.CTkButton(
-    master=auth_frame,
-    text="Login",
-    corner_radius=7,
-    command= on_login_click
-)
-login_btn.pack(pady=15)
-
-
-# print(f"loggedin_uid: {loggedin_uid}")
-# print(f"user_role: {user_role}")
-
-login_window.mainloop()
 
 # **Create frame for header**
 header_frame = ctk.CTkFrame(app, corner_radius=5)
