@@ -180,7 +180,18 @@ def on_login_click(email_entry, pwd_entry, login_window):
         # Handle login failure
         CTkMessagebox(title="Login Failed", message="Invalid email or password")
         return None, None, None  # Return None for each value on failure
+
+def on_closing_login_window():
+    global app
+    if app:
+        app.quit()  # Quit the main application loop
+    # Ensure that the login window is destroyed properly
+    if login_window:
+        login_window.destroy()
+    
 def create_login_window():
+    global login_window  # Declare login_window as global to access it in the closing function
+    
     login_window = ctk.CTkToplevel()  # Create a new top-level window
     login_window.title("Forento Fly Detector | Login")
     login_window.geometry("480x900")
@@ -221,8 +232,11 @@ def create_login_window():
     )
     login_btn.pack(pady=15)
 
-    login_window.mainloop()
-
+    # login_window.mainloop()
+    
+    # Bind the close event to the on_closing_login_window function
+    login_window.protocol("WM_DELETE_WINDOW", on_closing_login_window)
+    
     return login_window, email_entry, pwd_entry
 
 def create_logout_icon(parent_frame, command):
@@ -234,7 +248,7 @@ def create_logout_icon(parent_frame, command):
                                 image=logout_icon_image, 
                                 text="", 
                                 fg_color="gray30", 
-                                corner_radius=100, 
+                                corner_radius=24 // 2, 
                                 width=24,
                                 height=24)
     logout_icon_button.configure(command=command)
@@ -244,13 +258,18 @@ def create_logout_icon(parent_frame, command):
 def logout():
     global is_user_logged_in, app, login_window
 
-    # Perform any logout actions (e.g., clear user data)
-    # ...
-
     is_user_logged_in = False  # Reset connection flag
 
     # Destroy the main app window
-    app.withdraw()
+    if app:
+        app.destroy()
+    
+    # Close the login window if it's open
+    if login_window:
+        login_window.destroy()
+
+    # Destroy the main app window
+    # app.withdraw()
 
     # Reinitialize the login window
     login_window, email_entry, pwd_entry = create_login_window()
