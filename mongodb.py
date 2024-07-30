@@ -225,6 +225,21 @@ def create_login_window():
 
     return login_window, email_entry, pwd_entry
 
+def logout():
+    global is_user_logged_in, app, login_window
+
+    # Perform any logout actions (e.g., clear user data)
+    # ...
+
+    is_user_logged_in = False  # Reset connection flag
+
+    # Destroy the main app window
+    app.withdraw()
+    
+    # Reinitialize the login window
+    login_window, email_entry, pwd_entry = create_login_window()
+    login_window.mainloop()  # Restart the login window loop
+
 # Set appearance mode
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("green")
@@ -271,6 +286,9 @@ app_name_label.pack(side="left", pady=5)
 tab_bar_frame = ctk.CTkFrame(app)
 tab_bar_frame.pack(side="top", fill="x")
 
+logout_button = ctk.CTkButton(tab_bar_frame, text="Logout", command=logout)
+logout_button.pack(side="right", padx=5, pady=5)  # Position the button in the main app
+
 # Center the tab bar frame
 tab_bar_inner_frame = ctk.CTkFrame(tab_bar_frame)
 tab_bar_inner_frame.pack(side="top")
@@ -310,21 +328,8 @@ def update_tab_styles(active_tab_index):
 tab_frames[0].pack(fill="both", expand=True)
 update_tab_styles(0)
 
-def logout():
-    global is_user_logged_in
-
-    # Perform any logout actions (e.g., clear user data)
-    # ...
-
-    is_user_logged_in = False  # Reset connection flag
-
-    # Show the login window again
-    login_window.mainloop()  # Restart the login window loop
-
 # Display the first tab by default
 tab_frames[0].pack(fill="both", expand=True)
-logout_button = ctk.CTkButton(app, text="Logout", command=logout)
-logout_button.pack()  # Position the button in the main app
 
 # **Create a main container frame**
 main_container = ctk.CTkFrame(tab_frames[0])
