@@ -225,6 +225,22 @@ def create_login_window():
 
     return login_window, email_entry, pwd_entry
 
+def create_logout_icon(parent_frame, command):
+    # Load the icon image
+    logout_icon_image = ctk.CTkImage(Image.open("asset/logout.png"), size=(24, 24))  # Adjust the path and size as needed
+
+    logout_icon_button = ctk.CTkButton(
+                                parent_frame, 
+                                image=logout_icon_image, 
+                                text="", 
+                                fg_color="gray30", 
+                                corner_radius=100, 
+                                width=24,
+                                height=24)
+    logout_icon_button.configure(command=command)
+    logout_icon_button.pack(side="right", padx=10, pady=5)
+    return logout_icon_button
+
 def logout():
     global is_user_logged_in, app, login_window
 
@@ -235,7 +251,7 @@ def logout():
 
     # Destroy the main app window
     app.withdraw()
-    
+
     # Reinitialize the login window
     login_window, email_entry, pwd_entry = create_login_window()
     login_window.mainloop()  # Restart the login window loop
@@ -286,8 +302,11 @@ app_name_label.pack(side="left", pady=5)
 tab_bar_frame = ctk.CTkFrame(app)
 tab_bar_frame.pack(side="top", fill="x")
 
-logout_button = ctk.CTkButton(tab_bar_frame, text="Logout", command=logout)
-logout_button.pack(side="right", padx=5, pady=5)  # Position the button in the main app
+# logout_button = ctk.CTkButton(tab_bar_frame, text="Logout", command=logout)
+# logout_button.pack(side="right", padx=5, pady=5)  # Position the button in the main app
+
+# Add logout icon
+create_logout_icon(tab_bar_frame, logout)
 
 # Center the tab bar frame
 tab_bar_inner_frame = ctk.CTkFrame(tab_bar_frame)
