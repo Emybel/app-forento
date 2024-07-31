@@ -75,7 +75,8 @@ fly_data_per_frame = []
 storage_path = "./data/storage"
 archive_path = "./data/archive"
 is_user_logged_in = False
-
+login_window = None
+app = None
 
 now = datetime.now()
 date_str = now.strftime("%m-%d-%Y")
@@ -162,24 +163,20 @@ def update_tab_styles(selected_index):
             button.configure(fg_color="transparent", font=("Arial", 12), corner_radius=0, border_width=0)  # Inactive tab style
 
 def on_login_click(email_entry, pwd_entry, login_window):
-    global is_user_logged_in
+    global is_user_logged_in, app
     email = email_entry.get()
     password = pwd_entry.get()
     logged_in_user_id, user_role, username = login_user(email, password)
     if logged_in_user_id and user_role:
-        # Clear the fields
         pwd_entry.delete(0, tk.END)
         email_entry.delete(0, tk.END)
         login_window.destroy()
-        is_user_logged_in = True  # Set flag to True
-        app.deiconify()  # Make the main app window visible
-        
-        # Return the retrieved data as a tuple
+        is_user_logged_in = True
+        app.deiconify()  
         return logged_in_user_id, user_role, username
     else:
-        # Handle login failure
         CTkMessagebox(title="Login Failed", message="Invalid email or password")
-        return None, None, None  # Return None for each value on failure
+        return None, None, None
 
 def on_closing_login_window():
     global app
@@ -232,9 +229,7 @@ def create_login_window():
     )
     login_btn.pack(pady=15)
 
-    # login_window.mainloop()
-    
-    # Bind the close event to the on_closing_login_window function
+    # Set the protocol for the window close button
     login_window.protocol("WM_DELETE_WINDOW", on_closing_login_window)
     
     return login_window, email_entry, pwd_entry
@@ -257,23 +252,10 @@ def create_logout_icon(parent_frame, command):
 
 def logout():
     global is_user_logged_in, app, login_window
-
-    is_user_logged_in = False  # Reset connection flag
-
-    # Destroy the main app window
-    if app:
-        app.destroy()
-    
-    # Close the login window if it's open
-    if login_window:
-        login_window.destroy()
-
-    # Destroy the main app window
-    # app.withdraw()
-
-    # Reinitialize the login window
+    is_user_logged_in = False
+    app.withdraw()
     login_window, email_entry, pwd_entry = create_login_window()
-    login_window.mainloop()  # Restart the login window loop
+    login_window.mainloop()
 
 # Set appearance mode
 ctk.set_appearance_mode("System")
