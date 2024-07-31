@@ -24,8 +24,8 @@ def login_user(email, password):
     # print(f"password: {password}")
     
     users = db.users.find()  # This returns a cursor to all documents in the collection
-    for user in users:
-        print(user)
+    # for user in users:
+    #     print(user)
     
     user = db.users.find_one({"email": email})
     # print(f"User credintials: {user}")
@@ -43,14 +43,6 @@ def login_user(email, password):
             logged_in_user_id = user["_id"]
             user_role = user["role"]
             return logged_in_user_id, user_role, username
-            # # Clear the fields
-            # pwd_entry.delete(0, tk.END)
-            # email_entry.delete(0, tk.END)
-            # login_window.destroy()
-            # return logged_in_user_id, user_role 
-            # # Show the main app gui
-            # from mongodb import app
-            # main_app = app()
         else:
             CTkMessagebox(title="Invalid Password", message="The provided password is incorrect.")
             return None, None, None     
